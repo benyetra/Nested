@@ -39,6 +39,8 @@ public protocol EventStore: Sendable {
   @discardableResult
   func createBaby(name: String, birthDate: Date?, feedingMode: FeedingMode, unit: VolumeUnit) throws -> Baby
   func updateBaby(_ baby: Baby) throws
+  /// Deletes the baby and every entry (cascades, and syncs the deletion).
+  func deleteAllData() throws
 
   // Logging
   @discardableResult
@@ -180,6 +182,15 @@ public struct LiveEventStore: EventStore {
     try database.write { db in
       try Baby.update(baby).execute(db)
     }
+    onChange(.settingsChanged)
+  }
+
+  public func deleteAllData() throws {
+    try database.write { db in
+      guard let baby = try Self.currentBaby(db) else { return }
+      try Baby.find(baby.id).delete().execute(db)
+    }
+    DevicePrefs.babyID = nil
     onChange(.settingsChanged)
   }
 

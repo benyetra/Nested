@@ -1,0 +1,141 @@
+name: Nest
+options:
+  bundleIdPrefix: com.yetra
+  deploymentTarget:
+    iOS: "26.0"
+    watchOS: "26.0"
+  createIntermediateGroups: true
+  groupSortPosition: top
+  xcodeVersion: "26.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_STRICT_CONCURRENCY: complete
+    MARKETING_VERSION: "1.0.0"
+    CURRENT_PROJECT_VERSION: 1
+    DEVELOPMENT_TEAM: 87A6J7UY87
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+    # Cloudflare Worker for partner Live Activity / alarm pushes (see worker/README.md).
+    # Leave empty to run without it; set in a local xcconfig or Xcode Cloud env.
+    NEST_WORKER_URL: ""
+    NEST_WORKER_KEY: ""
+
+packages:
+  NestKit:
+    path: NestKit
+
+targets:
+  Nest:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+      - path: Shared
+    dependencies:
+      - package: NestKit
+        product: NestCore
+      - package: NestKit
+        product: NestData
+      - target: NestWidgets
+      - target: NestWatch
+        copy:
+          destination: productsDirectory
+          subpath: $(CONTENTS_FOLDER_PATH)/Watch
+    entitlements:
+      path: App/Nest.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest
+        INFOPLIST_FILE: App/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+    scheme:
+      testTargets:
+        - NestTests
+      gatherCoverageData: false
+
+  NestWidgets:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: Widgets
+      - path: Shared
+    dependencies:
+      - package: NestKit
+        product: NestCore
+      - package: NestKit
+        product: NestData
+    entitlements:
+      path: Widgets/NestWidgets.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest.widgets
+        INFOPLIST_FILE: Widgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        TARGETED_DEVICE_FAMILY: "1"
+        SKIP_INSTALL: YES
+
+  NestWatch:
+    type: application
+    platform: watchOS
+    sources:
+      - path: Watch
+      - path: Shared/EventStyle.swift
+      - path: Shared/SharedStore.swift
+      - path: Shared/Intents
+    dependencies:
+      - package: NestKit
+        product: NestCore
+      - package: NestKit
+        product: NestData
+      - target: NestWatchWidgets
+    entitlements:
+      path: Watch/NestWatch.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest.watchkitapp
+        INFOPLIST_FILE: Watch/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SKIP_INSTALL: YES
+
+  NestWatchWidgets:
+    type: app-extension
+    platform: watchOS
+    sources:
+      - path: WatchWidgets
+      - path: Shared/EventStyle.swift
+      - path: Shared/SharedStore.swift
+      - path: Shared/Widgets
+    dependencies:
+      - package: NestKit
+        product: NestCore
+      - package: NestKit
+        product: NestData
+    entitlements:
+      path: WatchWidgets/NestWatchWidgets.entitlements
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest.watchkitapp.widgets
+        INFOPLIST_FILE: WatchWidgets/Info.plist
+        GENERATE_INFOPLIST_FILE: NO
+        SKIP_INSTALL: YES
+
+  NestTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      # NestKit modules come in through the host app (linked once, so there's a single
+      # copy of shared state such as the configured store).
+      - target: Nest
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Nest.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Nest
+        BUNDLE_LOADER: $(TEST_HOST)

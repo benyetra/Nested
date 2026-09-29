@@ -1,0 +1,166 @@
+import NestCore
+import NestData
+import SwiftUI
+
+// Motion spec from the PRD, in one place. Reduce Motion swaps springs for 200 ms cross-fades.
+enum Motion {
+  /// Default UI change: critically damped, no bounce.
+  static let standard = Animation.spring(response: 0.35, dampingFraction: 1.0)
+  /// Sheet present/dismiss: slight bounce, only because a gesture drove it.
+  static let sheet = Animation.spring(response: 0.3, dampingFraction: 0.8)
+  /// Side switch L ↔ R.
+  static let sideSwitch = Animation.spring(response: 0.4, dampingFraction: 0.8)
+  /// Night mode fades over 400 ms, never a flash.
+  static let nightFade = Animation.easeInOut(duration: 0.4)
+  static let reduced = Animation.easeInOut(duration: 0.2)
+
+  static func resolve(_ animation: Animation, reduceMotion: Bool) -> Animation {
+    reduceMotion ? reduced : animation
+  }
+}
+
+extension View {
+  /// Applies `animation` for `value`, or a short cross-fade under Reduce Motion.
+  func nestAnimation<V: Equatable>(_ animation: Animation = Motion.standard, value: V) -> some View {
+    modifier(NestAnimationModifier(animation: animation, value: value))
+  }
+}
+
+private struct NestAnimationModifier<V: Equatable>: ViewModifier {
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  let animation: Animation
+  let value: V
+
+  func body(content: Content) -> some View {
+    content.animation(Motion.resolve(animation, reduceMotion: reduceMotion), value: value)
+  }
+}
+
+/// Feedback on press (scale to 0.97 over 100 ms), commit on release.
+struct PressableStyle: ButtonStyle {
+  func makeBody(configuration: Configuration) -> some View {
+    configuration.label
+      .scaleEffect(configuration.isPressed ? 0.97 : 1)
+      .animation(.easeOut(duration: 0.1), value: configuration.isPressed)
+      .contentShape(.rect)
+  }
+}
+
+extension ButtonStyle where Self == PressableStyle {
+  static var pressable: PressableStyle { PressableStyle() }
+}
+
+// MARK: - Surfaces
+
+/// A card on the Now screen. Solid under Reduce Transparency; never glass on glass.
+struct Card<Content: View>: View {
+  var tint: Color? = nil
+  @ViewBuilder var content: Content
+
+  var body: some View {
+    content
+      .frame(maxWidth: .infinity, alignment: .leading)
+      .padding(16)
+      .background {
+        RoundedRectangle(cornerRadius: 22, style: .continuous)
+          .fill(Color(.secondarySystemGroupedBackground))
+          .overlay {
+            if let tint {
+              RoundedRectangle(cornerRadius: 22, style: .continuous)
+                .fill(tint.opacity(0.12))
+            }
+          }
+      }
+  }
+}
+
+/// Chip used for backdating, amounts and quick choices.
+struct Chip: View {
+  let title: String
+  var systemImage: String? = nil
+  var isSelected = false
+  var tint: Color = .accentColor
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 4) {
+        if let systemImage { Image(systemName: systemImage) }
+        Text(title).monospacedDigit()
+      }
+      .font(.subheadline.weight(.medium))
+      .padding(.horizontal, 14)
+      .padding(.vertical, 9)
+      .frame(minHeight: 44)
+      .background(
+        Capsule().fill(isSelected ? tint.opacity(0.25) : Color(.tertiarySystemFill))
+      )
+      .overlay(Capsule().strokeBorder(isSelected ? tint : .clear, lineWidth: 1.5))
+      .foregroundStyle(isSelected ? tint : .primary)
+    }
+    .buttonStyle(.pressable)
+    .accessibilityAddTraits(isSelected ? .isSelected : [])
+  }
+}
+
+/// Initial badge showing which parent logged an entry.
+struct ParentBadge: View {
+  let name: String
+
+  var body: some View {
+    Text(DevicePrefs.initial(for: name))
+      .font(.caption2.weight(.bold))
+      .frame(width: 22, height: 22)
+      .background(Circle().fill(Color(.tertiarySystemFill)))
+      .accessibilityLabel(name.isEmpty ? "Unknown parent" : "Logged by \(name)")
+  }
+}
+
+/// Primary full-width action at the bottom of a sheet, in thumb reach.
+struct PrimaryButton: View {
+  let title: String
+  var systemImage: String? = nil
+  var tint: Color = .accentColor
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      Label {
+        Text(title)
+      } icon: {
+        if let systemImage { Image(systemName: systemImage) }
+      }
+      .font(.headline)
+      .frame(maxWidth: .infinity, minHeight: 56)
+    }
+    .buttonStyle(.borderedProminent)
+    .buttonBorderShape(.capsule)
+    .tint(tint)
+  }
+}
+
+// MARK: - Night mode
+
+/// Night mode: true black, red-shifted, no pure white. Applied at the root.
+struct NightModeModifier: ViewModifier {
+  let isOn: Bool
+
+  func body(content: Content) -> some View {
+    content
+      .preferredColorScheme(isOn ? .dark : nil)
+      .colorMultiply(isOn ? NightPalette.multiply : .white)
+      .tint(isOn ? NightPalette.accent : nil)
+      .background(isOn ? Color.black : Color.clear)
+      .animation(Motion.nightFade, value: isOn)
+  }
+}
+
+enum NightMode {
+  static func isOn(setting: NightModeSetting, window: DayWindow, now: Date) -> Bool {
+    switch setting {
+    case .alwaysOn: true
+    case .off: false
+    case .automatic: window.contains(now)
+    }
+  }
+}

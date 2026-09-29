@@ -316,3 +316,20 @@ struct SnapshotTests {
     #expect(throws: StoreError.noBaby) { try store.logDiaper(kind: .wet) }
   }
 }
+
+@Suite("Delete all", .serialized)
+struct DeleteAllTests {
+  @Test("Deleting all data cascades to every entry")
+  func deleteAll() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    try store.logBottle(amountMl: 90, contents: .formula, at: t(9))
+    try store.logNursing(leftSeconds: 60, rightSeconds: 60, endedOn: .left, at: t(8), note: "")
+    try store.setFeedAlarm(fireAt: t(12), manual: true)
+    try store.deleteAllData()
+    #expect(try store.baby() == nil)
+    #expect(try store.database.read { db in try NursingSegment.all.fetchCount(db) } == 0)
+    #expect(try store.database.read { db in try FeedAlarm.all.fetchCount(db) } == 0)
+  }
+}

@@ -1,0 +1,387 @@
+import NestCore
+import NestData
+import SQLiteData
+import SwiftUI
+
+/// Home: three status tiles, predictions, flags, the feed alarm, running timers, and the
+/// five-button action bar in thumb reach.
+struct NowView: View {
+  @Environment(AppModel.self) private var model
+  @Fetch(SnapshotRequest(), animation: Motion.standard) private var snapshot = NestSnapshot.empty
+  @Namespace private var sheetSource
+
+  var body: some View {
+    NavigationStack {
+      TimelineView(.periodic(from: .now, by: 30)) { context in
+        ScrollView {
+          VStack(spacing: 14) {
+            header(now: context.date)
+            flagsCard(now: context.date)
+            timersSection(now: context.date)
+            statusTiles(now: context.date)
+            predictions(now: context.date)
+            AlarmCard(snapshot: snapshot, now: context.date)
+            totalsRow
+          }
+          .padding(.horizontal)
+          .padding(.bottom, 120)
+        }
+        .scrollIndicators(.hidden)
+      }
+      .background(Color(.systemGroupedBackground))
+      .safeAreaInset(edge: .bottom) {
+        ActionBar(snapshot: snapshot, namespace: sheetSource)
+          .padding(.horizontal)
+          .padding(.bottom, 6)
+      }
+      .toolbar(.hidden, for: .navigationBar)
+    }
+    .sheet(item: sheetRoute) { route in
+      LogSheet(kind: route.kind, snapshot: snapshot)
+        .navigationTransition(.zoom(sourceID: route.kind, in: sheetSource))
+    }
+  }
+
+  private var sheetRoute: Binding<LogRoute?> {
+    Binding(get: { model.route }, set: { model.route = $0 })
+  }
+
+  // MARK: Sections
+
+  private func header(now: Date) -> some View {
+    HStack(alignment: .firstTextBaseline) {
+      VStack(alignment: .leading, spacing: 2) {
+        Text(snapshot.babyName)
+          .font(.largeTitle.weight(.bold))
+          .tracking(-0.5)
+        if let birth = snapshot.baby?.birthDate {
+          Text(AgeMath.label(birth: birth, now: now))
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+        }
+      }
+      Spacer()
+      Text(now, format: .dateTime.hour().minute())
+        .font(.status(.title3))
+        .monospacedDigit()
+        .foregroundStyle(.secondary)
+    }
+    .padding(.top, 8)
+    .accessibilityElement(children: .combine)
+  }
+
+  @ViewBuilder
+  private func flagsCard(now: Date) -> some View {
+    let flags = snapshot.flags(now: now)
+    if !flags.isEmpty {
+      Card(tint: .orange) {
+        VStack(alignment: .leading, spacing: 8) {
+          ForEach(flags) { flag in
+            VStack(alignment: .leading, spacing: 2) {
+              Label(flag.title, systemImage: "exclamationmark.bubble")
+                .font(.subheadline.weight(.semibold))
+              Text(flag.detail).font(.footnote).foregroundStyle(.secondary)
+            }
+          }
+        }
+      }
+      .accessibilityElement(children: .combine)
+    }
+  }
+
+  @ViewBuilder
+  private func timersSection(now: Date) -> some View {
+    if let nursing = snapshot.activeNursing {
+      RunningTimerCard(kind: .nursing, title: nursing.isPaused ? "Nursing paused" : "Nursing · \(nursing.currentSide.title)",
+        start: nursing.effectiveStart(now: now), frozen: nursing.isPaused ? nursing.totals(now: now) : nil,
+        loggedBy: nursing.session.loggedBy
+      ) { model.open(.nursing) }
+    }
+    if let pump = snapshot.activePump {
+      RunningTimerCard(kind: .pump, title: "Pumping", start: pump.startedAt, frozen: nil, loggedBy: pump.loggedBy) {
+        model.open(.pump)
+      }
+    }
+    if let sleep = snapshot.activeSleep {
+      RunningTimerCard(kind: .sleep, title: "Asleep", start: sleep.startedAt, frozen: nil, loggedBy: sleep.loggedBy) {
+        model.open(.sleep)
+      }
+    }
+  }
+
+  private func statusTiles(now: Date) -> some View {
+    Grid(horizontalSpacing: 10, verticalSpacing: 10) {
+      GridRow {
+        StatusTile(kind: lastFeedKind, title: "Last fed", date: snapshot.lastFeed?.startedAt,
+          detail: snapshot.lastFeed.map { Answers.feedSummary($0, unit: snapshot.unit) } ?? "Nothing yet")
+        .onTapGesture { model.open(lastFeedKind) }
+        sleepTile
+      }
+      GridRow {
+        StatusTile(kind: .diaper, title: "Last diaper", date: snapshot.lastDiaper?.occurredAt,
+          detail: snapshot.lastDiaper.map { diaperDetail($0) } ?? "Nothing yet")
+        .onTapGesture { model.open(.diaper) }
+        StatusTile(kind: .nursing, title: "Next side", date: nil,
+          detail: snapshot.nextSide.title, big: snapshot.nextSide.initial)
+        .onTapGesture { model.open(.nursing) }
+      }
+    }
+  }
+
+  private var lastFeedKind: EventKind { snapshot.lastFeed?.isNursing == true ? .nursing : .bottle }
+
+  @ViewBuilder
+  private var sleepTile: some View {
+    if let sleep = snapshot.activeSleep {
+      StatusTile(kind: .sleep, title: "Asleep for", date: sleep.startedAt, detail: sleep.location?.title ?? "Sleeping", relativeSuffix: false)
+        .onTapGesture { model.open(.sleep) }
+    } else {
+      StatusTile(kind: .sleep, title: "Awake since", date: snapshot.awakeSince,
+        detail: snapshot.awakeSince.map { $0.formatted(date: .omitted, time: .shortened) } ?? "No sleep logged", relativeSuffix: false)
+        .onTapGesture { model.open(.sleep) }
+    }
+  }
+
+  private func diaperDetail(_ diaper: Diaper) -> String {
+    var text = diaper.kind.title
+    if let color = diaper.stoolColor { text += " · \(color.title.lowercased())" }
+    return text
+  }
+
+  @ViewBuilder
+  private func predictions(now: Date) -> some View {
+    VStack(spacing: 10) {
+      if let feed = snapshot.feedPrediction, snapshot.activeNursing == nil {
+        Card(tint: EventKind.bottle.color) {
+          VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+              Label("Next feed", systemImage: "clock.arrow.circlepath")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(EventKind.bottle.color)
+              Spacer()
+              Text("~\(feed.expected.formatted(date: .omitted, time: .shortened))")
+                .font(.status(.title2))
+                .monospacedDigit()
+            }
+            Text("\(feed.earliest.formatted(date: .omitted, time: .shortened))–\(feed.latest.formatted(date: .omitted, time: .shortened)) · \(feed.basis)")
+              .font(.footnote)
+              .foregroundStyle(.secondary)
+          }
+        }
+        .accessibilityElement(children: .combine)
+      }
+      if let nap = snapshot.napPrediction, snapshot.activeSleep == nil {
+        Card(tint: EventKind.sleep.color) {
+          VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+              Label("Nap window", systemImage: "moon.zzz")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(EventKind.sleep.color)
+              Spacer()
+              if nap.opensAt > now {
+                Text("opens \(Text(nap.opensAt, style: .relative))")
+                  .font(.subheadline.weight(.medium))
+                  .monospacedDigit()
+              } else {
+                Text("open now").font(.subheadline.weight(.medium))
+              }
+            }
+            ProgressView(value: nap.progress(now: now))
+              .tint(EventKind.sleep.color)
+            Text(nap.basis).font(.footnote).foregroundStyle(.secondary)
+          }
+        }
+        .accessibilityElement(children: .combine)
+      }
+    }
+  }
+
+  private var totalsRow: some View {
+    let t = snapshot.totals24h
+    return Card {
+      VStack(alignment: .leading, spacing: 8) {
+        Text("Last 24 hours").font(.subheadline.weight(.semibold))
+        HStack {
+          total("\(t.feeds)", "feeds", .bottle)
+          total(Durations.compact(t.sleep), "sleep", .sleep)
+          total("\(t.wet)", "wet", .diaper)
+          total("\(t.dirty)", "dirty", .diaper)
+        }
+        if t.bottleMl > 0 || t.nursing > 0 {
+          Text("\(Volume.format(ml: t.bottleMl, unit: snapshot.unit)) by bottle · \(Durations.format(t.nursing)) nursing")
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+      }
+    }
+  }
+
+  private func total(_ value: String, _ label: String, _ kind: EventKind) -> some View {
+    VStack(spacing: 2) {
+      Text(value).font(.status(.title3)).monospacedDigit().foregroundStyle(kind.color)
+      Text(label).font(.caption).foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity)
+    .accessibilityElement(children: .combine)
+  }
+}
+
+// MARK: - Components
+
+struct StatusTile: View {
+  let kind: EventKind
+  let title: String
+  let date: Date?
+  let detail: String
+  var big: String? = nil
+  var relativeSuffix = true
+
+  var body: some View {
+    VStack(alignment: .leading, spacing: 6) {
+      Label(title, systemImage: kind.symbol)
+        .font(.caption.weight(.semibold))
+        .foregroundStyle(kind.color)
+      Group {
+        if let big {
+          Text(big)
+        } else if let date {
+          Text(date, style: relativeSuffix ? .relative : .timer)
+        } else {
+          Text("–")
+        }
+      }
+      .font(.status(.title2))
+      .monospacedDigit()
+      .lineLimit(1)
+      .minimumScaleFactor(0.6)
+      .contentTransition(.numericText())
+      Text(detail)
+        .font(.footnote)
+        .foregroundStyle(.secondary)
+        .lineLimit(2)
+    }
+    .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+    .padding(14)
+    .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+    .contentShape(.rect)
+    .accessibilityElement(children: .combine)
+    .accessibilityAddTraits(.isButton)
+  }
+}
+
+struct RunningTimerCard: View {
+  let kind: EventKind
+  let title: String
+  let start: Date
+  /// Frozen per-side totals while paused.
+  let frozen: (left: TimeInterval, right: TimeInterval)?
+  let loggedBy: String
+  let action: () -> Void
+
+  var body: some View {
+    Button(action: action) {
+      HStack(spacing: 12) {
+        Image(systemName: kind.symbol)
+          .font(.title2)
+          .foregroundStyle(kind.color)
+          .symbolEffect(.pulse, isActive: frozen == nil)
+        VStack(alignment: .leading, spacing: 2) {
+          Text(title).font(.subheadline.weight(.semibold))
+          Text("Started by \(loggedBy.isEmpty ? "someone" : loggedBy)")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        }
+        Spacer()
+        Group {
+          if let frozen {
+            Text(Durations.clock(frozen.left + frozen.right))
+          } else {
+            Text(timerInterval: start...Date.distantFuture, countsDown: false)
+          }
+        }
+        .font(.status(.title2))
+        .monospacedDigit()
+      }
+      .padding(16)
+      .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(kind.color.opacity(0.18)))
+    }
+    .buttonStyle(.pressable)
+    .accessibilityHint("Opens the timer")
+  }
+}
+
+/// The floating five-button bar: Bottle, Nurse, Diaper, Sleep, Pump. Liquid Glass, or a solid
+/// surface under Reduce Transparency.
+struct ActionBar: View {
+  @Environment(AppModel.self) private var model
+  @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+  let snapshot: NestSnapshot
+  let namespace: Namespace.ID
+
+  private let kinds: [EventKind] = [.bottle, .nursing, .diaper, .sleep, .pump]
+
+  var body: some View {
+    HStack(spacing: 4) {
+      ForEach(kinds, id: \.self) { kind in
+        Button {
+          model.open(kind)
+        } label: {
+          VStack(spacing: 4) {
+            ZStack(alignment: .topTrailing) {
+              Image(systemName: kind.symbol)
+                .font(.title2)
+                .frame(width: 44, height: 32)
+              if isRunning(kind) {
+                Circle().fill(kind.color).frame(width: 9, height: 9)
+              }
+            }
+            Text(label(for: kind))
+              .font(.caption2.weight(.semibold))
+              .lineLimit(1)
+          }
+          .foregroundStyle(kind.color)
+          .frame(maxWidth: .infinity, minHeight: 64)
+        }
+        .buttonStyle(.pressable)
+        .matchedTransitionSource(id: kind, in: namespace)
+        .accessibilityLabel(accessibilityLabel(for: kind))
+      }
+    }
+    .padding(.horizontal, 8)
+    .padding(.vertical, 6)
+    .background {
+      if reduceTransparency {
+        Capsule().fill(Color(.secondarySystemBackground))
+      }
+    }
+    .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: .capsule)
+  }
+
+  private func isRunning(_ kind: EventKind) -> Bool {
+    switch kind {
+    case .nursing: snapshot.activeNursing != nil
+    case .sleep: snapshot.activeSleep != nil
+    case .pump: snapshot.activePump != nil
+    default: false
+    }
+  }
+
+  private func label(for kind: EventKind) -> String {
+    switch kind {
+    case .nursing: snapshot.activeNursing != nil ? "Nursing" : "Nurse \(snapshot.nextSide.initial)"
+    case .sleep: snapshot.activeSleep != nil ? "Wake" : "Sleep"
+    case .pump: snapshot.activePump != nil ? "Pumping" : "Pump"
+    default: kind.title
+    }
+  }
+
+  private func accessibilityLabel(for kind: EventKind) -> String {
+    switch kind {
+    case .nursing:
+      snapshot.activeNursing != nil ? "Nursing timer running" : "Nurse, next side \(snapshot.nextSide.title)"
+    case .sleep: snapshot.activeSleep != nil ? "Sleep timer running" : "Sleep"
+    case .pump: snapshot.activePump != nil ? "Pump timer running" : "Pump"
+    default: "Log \(kind.title.lowercased())"
+    }
+  }
+}

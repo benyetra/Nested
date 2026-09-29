@@ -1,0 +1,14 @@
+name = "nest-push"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+
+[vars]
+APNS_TEAM_ID = "87A6J7UY87"
+BUNDLE_ID = "com.yetra.nest"
+# "development" for Xcode/TestFlight-from-Xcode builds, "production" for TestFlight/App Store.
+APNS_ENV = "production"
+
+# Secrets (set with `wrangler secret put <NAME>`):
+#   APNS_KEY_ID   - the 10-character key ID of the .p8 key
+#   APNS_KEY      - contents of the AuthKey_XXXXXXXXXX.p8 file
+#   NEST_KEY      - shared secret the app sends as "Authorization: Bearer <key>"
