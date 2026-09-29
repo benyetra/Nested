@@ -76,7 +76,7 @@ struct AmountControl: View {
               isSelected: abs(amount - ml) < 1,
               tint: tint
             ) {
-              withAnimation(Motion.standard) { ml = amount }
+              withNestAnimation(Motion.standard) { ml = amount }
             }
           }
         }
@@ -99,7 +99,7 @@ struct AmountControl: View {
 
   private func adjust(_ steps: Double) {
     let stepMl = Volume.ml(from: Volume.step(for: unit), unit: unit)
-    withAnimation(Motion.standard) {
+    withNestAnimation(Motion.standard) {
       ml = max(0, Volume.roundedMl(ml + steps * stepMl, unit: unit))
     }
   }
@@ -141,7 +141,7 @@ struct BottleSheet: View {
         }
         .pickerStyle(.segmented)
 
-        BackdatePicker(date: $date, label: "Fed at")
+        BackdatePicker(date: $date, label: "Fed at", tint: EventKind.bottle.color)
 
         DisclosureGroup("More", isExpanded: $showsMore) {
           VStack(alignment: .leading, spacing: 12) {
@@ -223,7 +223,7 @@ struct NursingSheet: View {
         Text("Suggested: \(snapshot.nextSide.title) (opposite of where the last feed ended)")
           .font(.footnote)
           .foregroundStyle(.secondary)
-        BackdatePicker(date: $date, label: "Started")
+        BackdatePicker(date: $date, label: "Started", tint: EventKind.nursing.color)
 
         DisclosureGroup("Log a past session instead", isExpanded: $showsPast) {
           VStack(alignment: .leading, spacing: 12) {
@@ -430,7 +430,7 @@ struct PumpSheet: View {
             .frame(maxWidth: .infinity)
           volumeFields
         } else {
-          BackdatePicker(date: $date, label: "Started")
+          BackdatePicker(date: $date, label: "Started", tint: EventKind.pump.color)
           DisclosureGroup("Log a past session instead", isExpanded: $showsPast) {
             VStack(alignment: .leading, spacing: 12) {
               Stepper("\(Int(minutes)) min", value: $minutes, in: 1...90)
@@ -533,7 +533,7 @@ struct DiaperSheet: View {
             .transition(.opacity.combined(with: .move(edge: .top)))
         }
 
-        BackdatePicker(date: $date, label: "Changed at")
+        BackdatePicker(date: $date, label: "Changed at", tint: EventKind.diaper.color)
         TextField("Note (optional)", text: $note, axis: .vertical)
           .textFieldStyle(.roundedBorder)
       }
@@ -582,10 +582,10 @@ struct DiaperSheet: View {
       }
 
       Text("Consistency").font(.subheadline.weight(.semibold))
-      FlowChips(options: StoolConsistency.allCases, selection: $consistency, title: \.title)
+      FlowChips(options: StoolConsistency.allCases, selection: $consistency, title: \.title, tint: EventKind.diaper.color)
 
       Text("Size").font(.subheadline.weight(.semibold))
-      FlowChips(options: DiaperSize.allCases, selection: $size, title: \.title)
+      FlowChips(options: DiaperSize.allCases, selection: $size, title: \.title, tint: EventKind.diaper.color)
 
       Toggle("Rash", isOn: $rash)
     }
@@ -621,12 +621,13 @@ struct FlowChips<Option: Hashable>: View {
   let options: [Option]
   @Binding var selection: Option?
   let title: KeyPath<Option, String>
+  var tint: Color = .accentColor
 
   var body: some View {
     ScrollView(.horizontal, showsIndicators: false) {
       HStack(spacing: 8) {
         ForEach(options, id: \.self) { option in
-          Chip(title: option[keyPath: title], isSelected: selection == option) {
+          Chip(title: option[keyPath: title], isSelected: selection == option, tint: tint) {
             selection = selection == option ? nil : option
           }
         }
@@ -661,11 +662,11 @@ struct SleepSheet: View {
             .font(.footnote)
             .foregroundStyle(.secondary)
             .frame(maxWidth: .infinity)
-          BackdatePicker(date: $date, label: "Woke at")
+          BackdatePicker(date: $date, label: "Woke at", tint: EventKind.sleep.color)
         } else {
           Text("Where").font(.subheadline.weight(.semibold))
-          FlowChips(options: SleepLocation.allCases, selection: $location, title: \.title)
-          BackdatePicker(date: $date, label: "Fell asleep")
+          FlowChips(options: SleepLocation.allCases, selection: $location, title: \.title, tint: EventKind.sleep.color)
+          BackdatePicker(date: $date, label: "Fell asleep", tint: EventKind.sleep.color)
           DisclosureGroup("Log a past sleep instead", isExpanded: $showsPast) {
             VStack(alignment: .leading) {
               DatePicker("Fell asleep", selection: $pastStart, in: ...Date())
@@ -728,8 +729,8 @@ struct NoteSheet: View {
           .lineLimit(3...8)
           .textFieldStyle(.roundedBorder)
           .focused($focused)
-        FlowChips(options: NoteTag.allCases, selection: $tag, title: \.title)
-        BackdatePicker(date: $date)
+        FlowChips(options: NoteTag.allCases, selection: $tag, title: \.title, tint: EventKind.note.color)
+        BackdatePicker(date: $date, tint: EventKind.note.color)
       }
       .padding()
     }

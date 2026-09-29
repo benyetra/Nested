@@ -6,6 +6,7 @@ import SwiftUI
 struct RootView: View {
   @Environment(AppModel.self) private var model
   @Fetch(SnapshotRequest()) private var snapshot = NestSnapshot.empty
+  @Namespace private var sheetSource
 
   var body: some View {
     @Bindable var model = model
@@ -16,7 +17,6 @@ struct RootView: View {
             isOn: NightMode.isOn(
               setting: DevicePrefs.nightMode, window: snapshot.baby?.nightWindow ?? .defaultNight, now: context.date)))
     }
-    .overlay(alignment: .bottom) { toast }
     .sheet(item: $model.editing) { entry in
       EntryEditor(entry: entry, unit: snapshot.unit)
     }
@@ -54,16 +54,38 @@ struct RootView: View {
       OnboardingView()
     } else {
       TabView(selection: $model.tab) {
-        Tab("Now", systemImage: "house.fill", value: AppTab.now) { NowView() }
-        Tab("Timeline", systemImage: "list.bullet", value: AppTab.timeline) { TimelineScreen() }
-        Tab("Trends", systemImage: "chart.bar.xaxis", value: AppTab.trends) { TrendsView() }
-        Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView() }
+        Tab("Now", systemImage: "house.fill", value: AppTab.now) { NowView().undoToastHost() }
+        Tab("Timeline", systemImage: "list.bullet", value: AppTab.timeline) { TimelineScreen().undoToastHost() }
+        Tab("Trends", systemImage: "chart.bar.xaxis", value: AppTab.trends) { TrendsView().undoToastHost() }
+        Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView().undoToastHost() }
+      }
+      .tabViewBottomAccessory {
+        ActionBar(snapshot: snapshot, namespace: sheetSource)
+      }
+      // Log sheets grow from the button that opened them and return to it.
+      .sheet(item: $model.route) { route in
+        LogSheet(kind: route.kind, snapshot: snapshot)
+          .navigationTransition(.zoom(sourceID: route.kind, in: sheetSource))
       }
     }
   }
 
-  @ViewBuilder
-  private var toast: some View {
+}
+
+extension View {
+  /// Shows the undo toast above this tab's bottom chrome (tab bar and log buttons).
+  func undoToastHost() -> some View {
+    overlay(alignment: .bottom) { UndoToastView() }
+  }
+}
+
+/// Every log shows a 5-second undo toast: undo, not confirm.
+private struct UndoToastView: View {
+  @Environment(AppModel.self) private var model
+  @Environment(\.accessibilityReduceMotion) private var reduceMotion
+  @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+
+  var body: some View {
     if let toast = model.toast {
       HStack(spacing: 12) {
         Text(toast.message)
@@ -78,12 +100,15 @@ struct RootView: View {
       }
       .padding(.horizontal, 18)
       .padding(.vertical, 8)
-      .glassEffect(.regular, in: .capsule)
+      .background {
+        if reduceTransparency { Capsule().fill(Color(.secondarySystemBackground)) }
+      }
+      .glassEffect(reduceTransparency ? .identity : .regular, in: .capsule)
       .padding(.horizontal)
-      .padding(.bottom, 96)
-      .transition(.move(edge: .bottom).combined(with: .opacity))
+      .padding(.bottom, 8)
+      // Enters and leaves along the same path; a cross-fade under Reduce Motion.
+      .transition(reduceMotion ? .opacity : .move(edge: .bottom).combined(with: .opacity))
       .accessibilityElement(children: .contain)
-      .accessibilityAddTraits(.isStaticText)
       .onAppear { UIAccessibility.post(notification: .announcement, argument: toast.message) }
     }
   }

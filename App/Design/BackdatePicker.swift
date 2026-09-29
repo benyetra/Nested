@@ -5,6 +5,8 @@ import SwiftUI
 struct BackdatePicker: View {
   @Binding var date: Date
   var label = "Time"
+  /// The sheet's event colour, so selection reads as part of the same action.
+  var tint: Color = .accentColor
   @State private var showsWheel = false
   @State private var anchor = Date()
 
@@ -17,14 +19,15 @@ struct BackdatePicker: View {
           ForEach(chips, id: \.self) { minutes in
             Chip(
               title: minutes == 0 ? "Now" : "\(minutes) min ago",
-              isSelected: isSelected(minutes)
+              isSelected: isSelected(minutes),
+              tint: tint
             ) {
               anchor = Date()
               date = anchor.addingTimeInterval(-Double(minutes) * 60)
             }
           }
-          Chip(title: showsWheel ? "Done" : "Other…", systemImage: "clock", isSelected: showsWheel) {
-            withAnimation(Motion.standard) { showsWheel.toggle() }
+          Chip(title: showsWheel ? "Done" : "Other…", systemImage: "clock", isSelected: showsWheel, tint: tint) {
+            withNestAnimation(Motion.standard) { showsWheel.toggle() }
           }
         }
       }

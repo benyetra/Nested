@@ -19,6 +19,15 @@ enum Motion {
   }
 }
 
+/// `withAnimation` that honours Reduce Motion (a 200 ms cross-fade instead of a spring).
+@MainActor
+@discardableResult
+func withNestAnimation<Result>(
+  _ animation: Animation = Motion.standard, _ body: () throws -> Result
+) rethrows -> Result {
+  try withAnimation(Motion.resolve(animation, reduceMotion: UIAccessibility.isReduceMotionEnabled), body)
+}
+
 extension View {
   /// Applies `animation` for `value`, or a short cross-fade under Reduce Motion.
   func nestAnimation<V: Equatable>(_ animation: Animation = Motion.standard, value: V) -> some View {

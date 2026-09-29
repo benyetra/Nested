@@ -3,12 +3,11 @@ import NestData
 import SQLiteData
 import SwiftUI
 
-/// Home: three status tiles, predictions, flags, the feed alarm, running timers, and the
-/// five-button action bar in thumb reach.
+/// Home: status tiles, predictions, flags, the feed alarm and running timers. The five log
+/// buttons live in the tab bar's accessory slot (RootView), in thumb reach on every tab.
 struct NowView: View {
   @Environment(AppModel.self) private var model
   @Fetch(SnapshotRequest(), animation: Motion.standard) private var snapshot = NestSnapshot.empty
-  @Namespace private var sheetSource
 
   var body: some View {
     NavigationStack {
@@ -23,29 +22,16 @@ struct NowView: View {
             totalsRow
           }
           .padding(.horizontal)
-          .padding(.bottom, 120)
+          .padding(.bottom, 24)
         }
         .scrollIndicators(.hidden)
       }
       .background(Color(.systemGroupedBackground))
-      .safeAreaInset(edge: .bottom) {
-        ActionBar(snapshot: snapshot, namespace: sheetSource)
-          .padding(.horizontal)
-          .padding(.bottom, 6)
-      }
       // A real navigation bar, so content scrolls under a proper edge effect instead of
       // colliding with the status bar.
       .navigationTitle(snapshot.babyName)
       .navigationSubtitle(ageText)
     }
-    .sheet(item: sheetRoute) { route in
-      LogSheet(kind: route.kind, snapshot: snapshot)
-        .navigationTransition(.zoom(sourceID: route.kind, in: sheetSource))
-    }
-  }
-
-  private var sheetRoute: Binding<LogRoute?> {
-    Binding(get: { model.route }, set: { model.route = $0 })
   }
 
   // MARK: Sections
@@ -97,17 +83,17 @@ struct NowView: View {
     Grid(horizontalSpacing: 10, verticalSpacing: 10) {
       GridRow {
         StatusTile(kind: lastFeedKind, title: "Last fed", date: snapshot.lastFeed?.startedAt,
-          detail: snapshot.lastFeed.map { Answers.feedSummary($0, unit: snapshot.unit) } ?? "Nothing yet")
-        .onTapGesture { model.open(lastFeedKind) }
+          detail: snapshot.lastFeed.map { Answers.feedSummary($0, unit: snapshot.unit) } ?? "Tap to log the first feed"
+        ) { model.open(lastFeedKind) }
         sleepTile
       }
       GridRow {
         StatusTile(kind: .diaper, title: "Last diaper", date: snapshot.lastDiaper?.occurredAt,
-          detail: snapshot.lastDiaper.map { diaperDetail($0) } ?? "Nothing yet")
-        .onTapGesture { model.open(.diaper) }
+          detail: snapshot.lastDiaper.map { diaperDetail($0) } ?? "Tap to log a change"
+        ) { model.open(.diaper) }
         StatusTile(kind: .nursing, title: "Next side", date: nil,
-          detail: snapshot.nextSide.title, big: snapshot.nextSide.initial)
-        .onTapGesture { model.open(.nursing) }
+          detail: snapshot.nextSide.title, big: snapshot.nextSide.initial
+        ) { model.open(.nursing) }
       }
     }
   }
@@ -117,12 +103,14 @@ struct NowView: View {
   @ViewBuilder
   private var sleepTile: some View {
     if let sleep = snapshot.activeSleep {
-      StatusTile(kind: .sleep, title: "Asleep for", date: sleep.startedAt, detail: sleep.location?.title ?? "Sleeping", relativeSuffix: false)
-        .onTapGesture { model.open(.sleep) }
+      StatusTile(kind: .sleep, title: "Asleep for", date: sleep.startedAt, detail: sleep.location?.title ?? "Sleeping",
+        relativeSuffix: false
+      ) { model.open(.sleep) }
     } else {
       StatusTile(kind: .sleep, title: "Awake since", date: snapshot.awakeSince,
-        detail: snapshot.awakeSince.map { $0.formatted(date: .omitted, time: .shortened) } ?? "No sleep logged", relativeSuffix: false)
-        .onTapGesture { model.open(.sleep) }
+        detail: snapshot.awakeSince.map { $0.formatted(date: .omitted, time: .shortened) } ?? "Tap to start a nap",
+        relativeSuffix: false
+      ) { model.open(.sleep) }
     }
   }
 
@@ -212,6 +200,7 @@ struct NowView: View {
 
 // MARK: - Components
 
+/// A status tile. It's a button so it responds on touch-down, like every other control.
 struct StatusTile: View {
   let kind: EventKind
   let title: String
@@ -219,37 +208,50 @@ struct StatusTile: View {
   let detail: String
   var big: String? = nil
   var relativeSuffix = true
+  let action: () -> Void
+
+  private var isEmpty: Bool { big == nil && date == nil }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      Label(title, systemImage: kind.symbol)
-        .font(.caption.weight(.semibold))
-        .foregroundStyle(kind.color)
-      Group {
-        if let big {
-          Text(big)
-        } else if let date {
-          Text(date, style: relativeSuffix ? .relative : .timer)
+    Button(action: action) {
+      VStack(alignment: .leading, spacing: 6) {
+        Label(title, systemImage: kind.symbol)
+          .font(.caption.weight(.semibold))
+          .foregroundStyle(kind.color)
+        if isEmpty {
+          // No data yet: say what to do instead of showing a lone dash.
+          Spacer(minLength: 0)
+          Text(detail)
+            .font(.subheadline.weight(.medium))
+            .foregroundStyle(.secondary)
+            .multilineTextAlignment(.leading)
         } else {
-          Text("–")
+          Group {
+            if let big {
+              Text(big)
+            } else if let date {
+              Text(date, style: relativeSuffix ? .relative : .timer)
+            }
+          }
+          .font(.status(.title2))
+          .monospacedDigit()
+          .foregroundStyle(.primary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.6)
+          Text(detail)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+            .lineLimit(2)
+            .multilineTextAlignment(.leading)
         }
       }
-      .font(.status(.title2))
-      .monospacedDigit()
-      .lineLimit(1)
-      .minimumScaleFactor(0.6)
-      .contentTransition(.numericText())
-      Text(detail)
-        .font(.footnote)
-        .foregroundStyle(.secondary)
-        .lineLimit(2)
+      .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
+      .padding(14)
+      .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
     }
-    .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
-    .padding(14)
-    .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
-    .contentShape(.rect)
+    .buttonStyle(.pressable)
     .accessibilityElement(children: .combine)
-    .accessibilityAddTraits(.isButton)
+    .accessibilityHint("Opens the \(kind.title.lowercased()) sheet")
   }
 }
 
@@ -294,51 +296,43 @@ struct RunningTimerCard: View {
   }
 }
 
-/// The floating five-button bar: Bottle, Nurse, Diaper, Sleep, Pump. Liquid Glass, or a solid
-/// surface under Reduce Transparency.
+/// The five log buttons: Bottle, Nurse, Diaper, Sleep, Pump. Shown as the tab bar's
+/// bottom accessory, so it shares the tab bar's glass instead of stacking glass on glass.
 struct ActionBar: View {
   @Environment(AppModel.self) private var model
-  @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
+  @Environment(\.tabViewBottomAccessoryPlacement) private var placement
   let snapshot: NestSnapshot
   let namespace: Namespace.ID
 
   private let kinds: [EventKind] = [.bottle, .nursing, .diaper, .sleep, .pump]
 
   var body: some View {
-    HStack(spacing: 4) {
+    HStack(spacing: 0) {
       ForEach(kinds, id: \.self) { kind in
         Button {
           model.open(kind)
         } label: {
-          VStack(spacing: 4) {
-            ZStack(alignment: .topTrailing) {
-              Image(systemName: kind.symbol)
-                .font(.title2)
-                .frame(width: 44, height: 32)
-              if isRunning(kind) {
-                Circle().fill(kind.color).frame(width: 9, height: 9)
-              }
+          VStack(spacing: 1) {
+            Image(systemName: kind.symbol)
+              .font(.body.weight(.semibold))
+              .symbolEffect(.pulse, isActive: isRunning(kind))
+            if placement != .inline {
+              Text(label(for: kind))
+                .font(.caption2.weight(.semibold))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             }
-            Text(label(for: kind))
-              .font(.caption2.weight(.semibold))
-              .lineLimit(1)
           }
           .foregroundStyle(kind.color)
-          .frame(maxWidth: .infinity, minHeight: 64)
+          .frame(maxWidth: .infinity, minHeight: 44)
+          .contentShape(.rect)
         }
         .buttonStyle(.pressable)
         .matchedTransitionSource(id: kind, in: namespace)
         .accessibilityLabel(accessibilityLabel(for: kind))
       }
     }
-    .padding(.horizontal, 8)
-    .padding(.vertical, 6)
-    .background {
-      if reduceTransparency {
-        Capsule().fill(Color(.secondarySystemBackground))
-      }
-    }
-    .glassEffect(reduceTransparency ? .identity : .regular.interactive(), in: .capsule)
+    .padding(.horizontal, 6)
   }
 
   private func isRunning(_ kind: EventKind) -> Bool {

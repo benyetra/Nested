@@ -136,18 +136,18 @@ final class AppModel {
 
   func showToast(_ message: String, undo: (@MainActor () -> Void)? = nil) {
     toastTask?.cancel()
-    withAnimation(Motion.standard) { toast = Toast(message: message, undo: undo) }
+    withNestAnimation(Motion.standard) { toast = Toast(message: message, undo: undo) }
     toastTask = Task { [weak self] in
       try? await Task.sleep(for: .seconds(5))
       guard !Task.isCancelled else { return }
-      withAnimation(Motion.standard) { self?.toast = nil }
+      withNestAnimation(Motion.standard) { self?.toast = nil }
     }
   }
 
   func undoToast() {
     toast?.undo?()
     selectionTick += 1
-    withAnimation(Motion.standard) { toast = nil }
+    withNestAnimation(Motion.standard) { toast = nil }
   }
 
   func delete(_ entry: Entry, unit: VolumeUnit) {

@@ -28,9 +28,11 @@ struct TimelineScreen: View {
         ForEach(sections, id: \.day) { section in
           Section {
             ForEach(section.entries) { entry in
-              TimelineRow(entry: entry, unit: snapshot.unit)
-                .contentShape(.rect)
-                .onTapGesture { model.editing = entry }
+              // A button, so the row highlights on touch-down like a system list row.
+              Button { model.editing = entry } label: {
+                TimelineRow(entry: entry, unit: snapshot.unit)
+              }
+              .foregroundStyle(.primary)
                 .swipeActions(edge: .trailing, allowsFullSwipe: true) {
                   Button("Delete", systemImage: "trash", role: .destructive) {
                     model.delete(entry, unit: snapshot.unit)
