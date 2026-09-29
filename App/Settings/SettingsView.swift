@@ -24,6 +24,7 @@ struct SettingsView: View {
     NavigationStack {
       if let baby = snapshot.baby {
         form(baby)
+          .nestListBackground()
           .navigationTitle("Settings")
       } else {
         ContentUnavailableView("No baby yet", systemImage: "person.crop.circle.badge.plus")

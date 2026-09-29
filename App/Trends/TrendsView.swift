@@ -64,7 +64,7 @@ struct TrendsView: View {
         }
         .padding()
       }
-      .background(Color(.systemGroupedBackground))
+      .nestBackground()
       .navigationTitle("Trends")
       .task(id: data.history) { await refreshSummary() }
     }

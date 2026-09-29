@@ -63,6 +63,7 @@ struct TimelineScreen: View {
         }
       }
       .listStyle(.insetGrouped)
+      .nestListBackground()
       .navigationTitle("Timeline")
       .toolbar {
         ToolbarItem(placement: .primaryAction) {

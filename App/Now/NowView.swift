@@ -26,7 +26,7 @@ struct NowView: View {
         }
         .scrollIndicators(.hidden)
       }
-      .background(Color(.systemGroupedBackground))
+      .nestBackground()
       // A real navigation bar, so content scrolls under a proper edge effect instead of
       // colliding with the status bar.
       .navigationTitle(snapshot.babyName)
@@ -123,24 +123,8 @@ struct NowView: View {
   @ViewBuilder
   private func predictions(now: Date) -> some View {
     VStack(spacing: 10) {
-      if let feed = snapshot.feedPrediction, snapshot.activeNursing == nil {
-        Card(tint: EventKind.bottle.color) {
-          VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .firstTextBaseline) {
-              Label("Next feed", systemImage: "clock.arrow.circlepath")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(EventKind.bottle.color)
-              Spacer()
-              Text("~\(feed.expected.formatted(date: .omitted, time: .shortened))")
-                .font(.status(.title2))
-                .monospacedDigit()
-            }
-            Text("\(feed.earliest.formatted(date: .omitted, time: .shortened))–\(feed.latest.formatted(date: .omitted, time: .shortened)) · \(feed.basis)")
-              .font(.footnote)
-              .foregroundStyle(.secondary)
-          }
-        }
-        .accessibilityElement(children: .combine)
+      if snapshot.activeNursing == nil {
+        NextFeedCard(prediction: snapshot.feedPrediction, lastFeed: snapshot.lastFeed?.startedAt, now: now)
       }
       if let nap = snapshot.napPrediction, snapshot.activeSleep == nil {
         Card(tint: EventKind.sleep.color) {
@@ -191,14 +175,76 @@ struct NowView: View {
   private func total(_ value: String, _ label: String, _ kind: EventKind) -> some View {
     VStack(spacing: 2) {
       Text(value).font(.status(.title3)).monospacedDigit().foregroundStyle(kind.color)
-      Text(label).font(.caption).foregroundStyle(.secondary)
+      Text(label).font(.caption.weight(.medium)).foregroundStyle(.secondary)
     }
     .frame(maxWidth: .infinity)
+    .padding(.vertical, 10)
+    .background(RoundedRectangle(cornerRadius: 14, style: .continuous).fill(kind.color.opacity(0.12)))
     .accessibilityElement(children: .combine)
   }
+
 }
 
 // MARK: - Components
+
+/// The screen's one bold moment: a solid card counting toward the predicted next feed, or
+/// a friendly note about what it needs before it can predict.
+struct NextFeedCard: View {
+  let prediction: FeedPrediction?
+  let lastFeed: Date?
+  let now: Date
+
+  private let tint = EventKind.bottle.color
+
+  var body: some View {
+    HStack(alignment: .center, spacing: 16) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text("Next feed")
+          .font(.subheadline.weight(.semibold))
+          .opacity(0.85)
+        if let prediction {
+          Text("~\(prediction.expected.formatted(date: .omitted, time: .shortened))")
+            .font(.system(.largeTitle, design: .rounded).weight(.bold))
+            .tracking(-0.5)
+            .monospacedDigit()
+          Text("\(prediction.earliest.formatted(date: .omitted, time: .shortened))–\(prediction.latest.formatted(date: .omitted, time: .shortened)) · \(prediction.basis)")
+            .font(.footnote)
+            .opacity(0.85)
+        } else {
+          Text("Log a few feeds and Nest will learn her rhythm.")
+            .font(.headline)
+          Text("Predictions come from her own last 3 days, never a generic chart.")
+            .font(.footnote)
+            .opacity(0.85)
+        }
+      }
+      Spacer(minLength: 0)
+      if let prediction, let lastFeed, prediction.expected > lastFeed {
+        ProgressView(timerInterval: lastFeed...prediction.expected, countsDown: false) {
+          EmptyView()
+        } currentValueLabel: {
+          Image(systemName: "waterbottle.fill")
+        }
+        .progressViewStyle(.circular)
+        .tint(.white)
+        .frame(width: 56, height: 56)
+      } else {
+        Image(systemName: "sparkles")
+          .font(.title)
+          .opacity(0.9)
+      }
+    }
+    .foregroundStyle(.white)
+    .padding(18)
+    .frame(maxWidth: .infinity, alignment: .leading)
+    .background {
+      RoundedRectangle(cornerRadius: 24, style: .continuous)
+        .fill(tint.gradient)
+        .shadow(color: tint.opacity(0.35), radius: 16, y: 8)
+    }
+    .accessibilityElement(children: .combine)
+  }
+}
 
 /// A status tile. It's a button so it responds on touch-down, like every other control.
 struct StatusTile: View {
@@ -215,9 +261,12 @@ struct StatusTile: View {
   var body: some View {
     Button(action: action) {
       VStack(alignment: .leading, spacing: 6) {
-        Label(title, systemImage: kind.symbol)
-          .font(.caption.weight(.semibold))
-          .foregroundStyle(kind.color)
+        HStack(spacing: 6) {
+          EventBadge(kind: kind, size: 24)
+          Text(title)
+            .font(.caption.weight(.semibold))
+            .foregroundStyle(kind.color)
+        }
         if isEmpty {
           // No data yet: say what to do instead of showing a lone dash.
           Spacer(minLength: 0)
@@ -247,7 +296,12 @@ struct StatusTile: View {
       }
       .frame(maxWidth: .infinity, minHeight: 96, alignment: .topLeading)
       .padding(14)
-      .background(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Color(.secondarySystemGroupedBackground)))
+      .background {
+        RoundedRectangle(cornerRadius: 20, style: .continuous)
+          .fill(Palette.card)
+          .overlay(RoundedRectangle(cornerRadius: 20, style: .continuous).fill(Palette.wash(kind.color)))
+          .shadow(color: kind.color.opacity(0.10), radius: 10, y: 4)
+      }
     }
     .buttonStyle(.pressable)
     .accessibilityElement(children: .combine)
@@ -313,8 +367,7 @@ struct ActionBar: View {
           model.open(kind)
         } label: {
           VStack(spacing: 1) {
-            Image(systemName: kind.symbol)
-              .font(.body.weight(.semibold))
+            EventBadge(kind: kind, size: 24)
               .symbolEffect(.pulse, isActive: isRunning(kind))
             if placement != .inline {
               Text(label(for: kind))

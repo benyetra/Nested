@@ -59,6 +59,60 @@ extension ButtonStyle where Self == PressableStyle {
   static var pressable: PressableStyle { PressableStyle() }
 }
 
+// MARK: - Palette
+
+/// Warm paper and ink instead of system grays: cream in light mode, deep warm navy in dark.
+/// The six event colours do the talking on top of it.
+enum Palette {
+  static let background = Color(
+    uiColor: UIColor { traits in
+      traits.userInterfaceStyle == .dark
+        ? UIColor(red: 0.07, green: 0.07, blue: 0.10, alpha: 1)
+        : UIColor(red: 0.985, green: 0.965, blue: 0.94, alpha: 1)
+    })
+
+  static let card = Color(
+    uiColor: UIColor { traits in
+      traits.userInterfaceStyle == .dark
+        ? UIColor(red: 0.13, green: 0.13, blue: 0.17, alpha: 1)
+        : UIColor(red: 1.0, green: 0.995, blue: 0.985, alpha: 1)
+    })
+
+  /// A soft wash of an event colour: stronger at the top-leading corner, fading out.
+  static func wash(_ color: Color, strength: Double = 1) -> LinearGradient {
+    LinearGradient(
+      colors: [color.opacity(0.22 * strength), color.opacity(0.08 * strength)],
+      startPoint: .topLeading, endPoint: .bottomTrailing)
+  }
+}
+
+/// The screen background used by every tab.
+extension View {
+  func nestBackground() -> some View {
+    background(Palette.background.ignoresSafeArea())
+  }
+
+  /// For List/Form screens: hide the system gray so the warm paper shows through.
+  func nestListBackground() -> some View {
+    scrollContentBackground(.hidden).nestBackground()
+  }
+}
+
+/// An event icon on a filled circle of its colour.
+struct EventBadge: View {
+  let kind: EventKind
+  var size: CGFloat = 28
+
+  var body: some View {
+    Image(systemName: kind.symbol)
+      .font(.system(size: size * 0.5, weight: .semibold))
+      .foregroundStyle(.white)
+      .frame(width: size, height: size)
+      .background(Circle().fill(kind.color.gradient))
+      .accessibilityHidden(true)
+  }
+}
+
 // MARK: - Surfaces
 
 /// A card on the Now screen. Solid under Reduce Transparency; never glass on glass.
@@ -72,13 +126,14 @@ struct Card<Content: View>: View {
       .padding(16)
       .background {
         RoundedRectangle(cornerRadius: 22, style: .continuous)
-          .fill(Color(.secondarySystemGroupedBackground))
+          .fill(Palette.card)
           .overlay {
             if let tint {
               RoundedRectangle(cornerRadius: 22, style: .continuous)
-                .fill(tint.opacity(0.12))
+                .fill(Palette.wash(tint))
             }
           }
+          .shadow(color: (tint ?? .black).opacity(0.08), radius: 12, y: 4)
       }
   }
 }

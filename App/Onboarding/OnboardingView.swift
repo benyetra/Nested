@@ -52,6 +52,7 @@ struct OnboardingView: View {
           }
         }
       }
+      .nestListBackground()
       .navigationTitle("Welcome to Nest")
       .safeAreaInset(edge: .bottom) {
         PrimaryButton(title: joining ? "Save my name" : "Start tracking", systemImage: "checkmark") {
