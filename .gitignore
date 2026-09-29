@@ -1,0 +1,7 @@
+.build/
+.swiftpm/
+*.xcodeproj/
+xcuserdata/
+DerivedData/
+worker/node_modules/
+worker/.wrangler/
