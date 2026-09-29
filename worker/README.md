@@ -14,7 +14,7 @@ Nothing is stored. Tokens come from the shared `deviceTokens` table in CloudKit.
 2. Deploy the Worker:
 
    ```sh
-   cd Nest/worker
+   cd worker
    npx wrangler login
    npx wrangler secret put APNS_KEY_ID   # the 10-character key ID
    npx wrangler secret put APNS_KEY      # paste the whole .p8 file

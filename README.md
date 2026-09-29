@@ -1,6 +1,6 @@
 # Nest — Newborn Tracker
 
-A private, two-parent iOS app that logs every feed, diaper, nap and pump in under 3 seconds, syncs between both parents' phones through iCloud, and turns the history into predictions and trends. It's built from the *Newborn Tracker PRD*.
+A private, two-parent iOS app that logs every feed, diaper, nap and pump in under 3 seconds, syncs between both parents' phones through iCloud, and turns the history into predictions and trends. It's built from the *Newborn Tracker PRD*. (Repository: Nested; the app is called Nest.)
 
 ## Layout
 
@@ -20,7 +20,6 @@ A private, two-parent iOS app that logs every feed, diaper, nap and pump in unde
 
 ```sh
 brew install xcodegen
-cd Nest
 xcodegen generate
 open Nest.xcodeproj
 ```

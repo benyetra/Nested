@@ -1,0 +1,99 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: nest-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  nestkit-linux:
+    name: NestKit tests (Linux)
+    runs-on: ubuntu-latest
+    container: swift:6.3-noble
+    defaults:
+      run:
+        working-directory: NestKit
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install SQLite headers
+        run: apt-get update -q && apt-get install -yq libsqlite3-dev
+      - name: Test
+        run: swift test
+
+  worker:
+    name: Worker syntax
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: worker
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Check and test
+        run: node --check src/index.js && node --test
+
+  ios:
+    name: Build app, widgets, watch; run tests
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          echo "Using $XCODE_PATH"
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      - name: NestKit tests (macOS)
+        working-directory: NestKit
+        run: swift test
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Build (iOS Simulator, includes widgets and watch app)
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -project Nest.xcodeproj \
+            -scheme Nest \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            build | tee build.log | xcbeautify --renderer github-actions || (grep -E "error:" build.log | head -100; exit 1)
+
+      - name: Intent tests
+        run: |
+          set -o pipefail
+          SIM_ID=$(xcrun simctl list devices available --json | python3 -c "
+          import sys, json
+          data = json.load(sys.stdin)
+          for runtime, devices in sorted(data['devices'].items(), reverse=True):
+              if 'iOS' in runtime:
+                  for d in devices:
+                      if d['name'].startswith('iPhone'):
+                          print(d['udid']); sys.exit(0)
+          ")
+          echo "Simulator: $SIM_ID"
+          xcodebuild \
+            -project Nest.xcodeproj \
+            -scheme Nest \
+            -destination "platform=iOS Simulator,id=$SIM_ID" \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO \
+            test | tee test.log | xcbeautify --renderer github-actions || (grep -E "error:|failed|✘" test.log | head -100; exit 1)
