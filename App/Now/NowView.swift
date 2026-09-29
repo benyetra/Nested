@@ -4,10 +4,10 @@ import SQLiteData
 import SwiftUI
 
 /// Home: status tiles, predictions, flags, the feed alarm and running timers. The five log
-/// buttons live in the tab bar's accessory slot (RootView), in thumb reach on every tab.
+/// buttons are pinned under the navigation bar (`actionBarInset`) on every tab.
 struct NowView: View {
   @Environment(AppModel.self) private var model
-  @Fetch(SnapshotRequest(), animation: Motion.standard) private var snapshot = NestSnapshot.empty
+  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
 
   var body: some View {
     NavigationStack {
@@ -27,6 +27,7 @@ struct NowView: View {
         .scrollIndicators(.hidden)
       }
       .nestBackground()
+      .actionBarInset(tab: .now)
       // A real navigation bar, so content scrolls under a proper edge effect instead of
       // colliding with the status bar.
       .navigationTitle(snapshot.babyName)
@@ -350,14 +351,39 @@ struct RunningTimerCard: View {
   }
 }
 
-/// The five log buttons: Bottle, Nurse, Diaper, Sleep, Pump. Shown as the tab bar's
-/// bottom accessory, so it shares the tab bar's glass instead of stacking glass on glass.
+struct ActionSourceID: Hashable {
+  var kind: EventKind
+  var active: Bool
+}
+
+private struct SheetNamespaceKey: EnvironmentKey {
+  static let defaultValue: Namespace.ID? = nil
+}
+
+extension EnvironmentValues {
+  /// Namespace the log sheets zoom out of.
+  var sheetNamespace: Namespace.ID? {
+    get { self[SheetNamespaceKey.self] }
+    set { self[SheetNamespaceKey.self] = newValue }
+  }
+}
+
+extension View {
+  /// Pins the log buttons under the navigation bar of a tab's screen. `tab` says which tab
+  /// this is, so only the visible copy is the sheets' zoom source.
+  func actionBarInset(tab: AppTab) -> some View {
+    safeAreaInset(edge: .top, spacing: 0) { ActionBar(tab: tab) }
+  }
+}
+
+/// The five log buttons: Bottle, Nurse, Diaper, Sleep, Pump. One solid, rounded strip pinned
+/// to the top of every screen, right under the navigation bar.
 struct ActionBar: View {
   @Environment(AppModel.self) private var model
-  @Environment(\.tabViewBottomAccessoryPlacement) private var placement
-  let snapshot: NestSnapshot
-  let namespace: Namespace.ID
+  @Environment(\.sheetNamespace) private var namespace
+  let tab: AppTab
 
+  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
   private let kinds: [EventKind] = [.bottle, .nursing, .diaper, .sleep, .pump]
 
   var body: some View {
@@ -366,26 +392,33 @@ struct ActionBar: View {
         Button {
           model.open(kind)
         } label: {
-          VStack(spacing: 1) {
-            EventBadge(kind: kind, size: 24)
+          VStack(spacing: 3) {
+            EventBadge(kind: kind, size: 32)
               .symbolEffect(.pulse, isActive: isRunning(kind))
-            if placement != .inline {
-              Text(label(for: kind))
-                .font(.caption2.weight(.semibold))
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-            }
+            Text(label(for: kind))
+              .font(.caption2.weight(.semibold))
+              .lineLimit(1)
+              .minimumScaleFactor(0.8)
+              .foregroundStyle(kind.color)
           }
-          .foregroundStyle(kind.color)
-          .frame(maxWidth: .infinity, minHeight: 44)
+          .frame(maxWidth: .infinity, minHeight: 56)
           .contentShape(.rect)
         }
         .buttonStyle(.pressable)
-        .matchedTransitionSource(id: kind, in: namespace)
+        .modifier(ZoomSource(kind: kind, active: model.tab == tab, namespace: namespace))
         .accessibilityLabel(accessibilityLabel(for: kind))
       }
     }
     .padding(.horizontal, 6)
+    .padding(.vertical, 4)
+    .background {
+      RoundedRectangle(cornerRadius: 22, style: .continuous)
+        .fill(Palette.card)
+        .shadow(color: .black.opacity(0.08), radius: 10, y: 3)
+    }
+    .padding(.horizontal, 12)
+    .padding(.top, 4)
+    .padding(.bottom, 8)
   }
 
   private func isRunning(_ kind: EventKind) -> Bool {
@@ -413,6 +446,20 @@ struct ActionBar: View {
     case .sleep: snapshot.activeSleep != nil ? "Sleep timer running" : "Sleep"
     case .pump: snapshot.activePump != nil ? "Pump timer running" : "Pump"
     default: "Log \(kind.title.lowercased())"
+    }
+  }
+}
+
+private struct ZoomSource: ViewModifier {
+  let kind: EventKind
+  let active: Bool
+  let namespace: Namespace.ID?
+
+  func body(content: Content) -> some View {
+    if let namespace {
+      content.matchedTransitionSource(id: ActionSourceID(kind: kind, active: active), in: namespace)
+    } else {
+      content
     }
   }
 }

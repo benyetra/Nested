@@ -9,7 +9,7 @@ struct TimelineScreen: View {
   @Environment(AppModel.self) private var model
   @State private var days = 14
   @Fetch(TimelineRequest(days: 14), animation: Motion.standard) private var entries: [Entry] = []
-  @Fetch(SnapshotRequest()) private var snapshot = NestSnapshot.empty
+  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
 
   private var sections: [(day: Date, entries: [Entry])] {
     let calendar = Calendar.current
@@ -64,6 +64,7 @@ struct TimelineScreen: View {
       }
       .listStyle(.insetGrouped)
       .nestListBackground()
+      .actionBarInset(tab: .timeline)
       .navigationTitle("Timeline")
       .toolbar {
         ToolbarItem(placement: .primaryAction) {

@@ -5,18 +5,25 @@ import SwiftUI
 
 struct RootView: View {
   @Environment(AppModel.self) private var model
-  @Fetch(SnapshotRequest()) private var snapshot = NestSnapshot.empty
+  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
+  @State private var now = Date()
   @Namespace private var sheetSource
 
   var body: some View {
     @Bindable var model = model
-    TimelineView(.everyMinute) { context in
-      content
-        .modifier(
-          NightModeModifier(
-            isOn: NightMode.isOn(
-              setting: DevicePrefs.nightMode, window: snapshot.baby?.nightWindow ?? .defaultNight, now: context.date)))
-    }
+    content
+      .modifier(
+        NightModeModifier(
+          isOn: NightMode.isOn(
+            setting: DevicePrefs.nightMode, window: snapshot.baby?.nightWindow ?? .defaultNight, now: now))
+      )
+      // Only this view re-evaluates each minute (night mode can flip); the tabs don't rebuild.
+      .task {
+        while !Task.isCancelled {
+          try? await Task.sleep(for: .seconds(60))
+          now = Date()
+        }
+      }
     .sheet(item: $model.editing) { entry in
       EntryEditor(entry: entry, unit: snapshot.unit)
     }
@@ -60,13 +67,11 @@ struct RootView: View {
         Tab("Doctor", systemImage: "stethoscope", value: AppTab.questions) { QuestionsView().undoToastHost() }
         Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView().undoToastHost() }
       }
-      .tabViewBottomAccessory {
-        ActionBar(snapshot: snapshot, namespace: sheetSource)
-      }
+      .environment(\.sheetNamespace, sheetSource)
       // Log sheets grow from the button that opened them and return to it.
       .sheet(item: $model.route) { route in
         LogSheet(kind: route.kind, snapshot: snapshot)
-          .navigationTransition(.zoom(sourceID: route.kind, in: sheetSource))
+          .navigationTransition(.zoom(sourceID: ActionSourceID(kind: route.kind, active: true), in: sheetSource))
       }
     }
   }
@@ -74,7 +79,7 @@ struct RootView: View {
 }
 
 extension View {
-  /// Shows the undo toast above this tab's bottom chrome (tab bar and log buttons).
+  /// Shows the undo toast above this tab's tab bar.
   func undoToastHost() -> some View {
     overlay(alignment: .bottom) { UndoToastView() }
   }

@@ -14,6 +14,7 @@ struct QuestionsView: View {
   @State private var confirmClear = false
   @FocusState private var draftFocused: Bool
 
+  private var canAdd: Bool { !RichText(plain: draft).isEmpty }
   private var open: [Question] { questions.filter { !$0.isDone } }
   private var answered: [Question] { questions.filter(\.isDone) }
 
@@ -22,10 +23,17 @@ struct QuestionsView: View {
       List {
         Section {
           HStack(spacing: 10) {
-            Image(systemName: "plus.circle.fill")
-              .font(.title3)
-              .foregroundStyle(QuestionStyle.tint)
-            TextField("Add a question for the doctor", text: $draft, axis: .vertical)
+            Button(action: addDraft) {
+              Image(systemName: "plus.circle.fill")
+                .font(.title2)
+                .foregroundStyle(canAdd ? QuestionStyle.tint : Color.secondary.opacity(0.5))
+                .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .disabled(!canAdd)
+            .accessibilityLabel("Add question")
+            // Single line: a vertical-axis field treats return as a new line, not submit.
+            TextField("Add a question for the doctor", text: $draft)
               .focused($draftFocused)
               .submitLabel(.done)
               .onSubmit(addDraft)
@@ -51,9 +59,15 @@ struct QuestionsView: View {
         }
       }
       .listStyle(.insetGrouped)
+      .scrollDismissesKeyboard(.interactively)
       .nestListBackground()
+      .actionBarInset(tab: .questions)
       .navigationTitle("Doctor")
       .toolbar {
+        ToolbarItemGroup(placement: .keyboard) {
+          Spacer()
+          Button("Done") { draftFocused = false }
+        }
         ToolbarItem(placement: .primaryAction) {
           Button("New question with formatting", systemImage: "square.and.pencil") { creating = true }
         }
@@ -76,7 +90,7 @@ struct QuestionsView: View {
     guard !text.isEmpty else { return }
     model.addQuestion(text)
     draft = ""
-    draftFocused = true
+    draftFocused = false
   }
 
   private func row(_ question: Question) -> some View {

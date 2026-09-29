@@ -41,7 +41,8 @@ struct NestApp: App {
         // Pick up anything widgets or intents wrote out of process, and refresh tokens.
         SyncCoordinator.shared.restartSync()
         SideEffects.shared.refresh()
-        try? model.store.updateDevice { _ in }
+        let store = model.store
+        Task.detached { try? store.updateDevice { _ in } }
       default:
         break
       }
@@ -54,10 +55,15 @@ struct NestApp: App {
 final class SyncCoordinator {
   static let shared = SyncCoordinator()
   private var restarting = false
+  private var lastRestart = Date.distantPast
 
   func restartSync() {
-    guard !restarting, let engine = NestBootstrap.syncEngine else { return }
+    // Foregrounding and widget writes can arrive in bursts; one restart covers them all.
+    guard !restarting, Date().timeIntervalSince(lastRestart) > 3,
+      let engine = NestBootstrap.syncEngine
+    else { return }
     restarting = true
+    lastRestart = Date()
     Task {
       defer { restarting = false }
       engine.stop()

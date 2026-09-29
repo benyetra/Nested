@@ -65,6 +65,7 @@ struct TrendsView: View {
         .padding()
       }
       .nestBackground()
+      .actionBarInset(tab: .trends)
       .navigationTitle("Trends")
       .task(id: data.history) { await refreshSummary() }
     }

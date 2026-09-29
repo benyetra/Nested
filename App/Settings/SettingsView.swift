@@ -7,7 +7,7 @@ import UniformTypeIdentifiers
 
 struct SettingsView: View {
   @Environment(AppModel.self) private var model
-  @Fetch(SnapshotRequest()) private var snapshot = NestSnapshot.empty
+  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
 
   @AppStorage(NotificationService.feedReminderKey) private var feedReminders = false
   @State private var nightMode = DevicePrefs.nightMode
@@ -25,6 +25,7 @@ struct SettingsView: View {
       if let baby = snapshot.baby {
         form(baby)
           .nestListBackground()
+          .actionBarInset(tab: .settings)
           .navigationTitle("Settings")
       } else {
         ContentUnavailableView("No baby yet", systemImage: "person.crop.circle.badge.plus")
