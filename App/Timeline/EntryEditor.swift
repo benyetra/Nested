@@ -84,9 +84,11 @@ struct EntryEditor: View {
   }
 }
 
-/// A Binding onto a copy that writes back through `update`.
-private func binding<T>(_ value: T, _ update: @escaping (T) -> Void) -> Binding<T> {
-  Binding(get: { value }, set: update)
+extension Binding where Value: Sendable {
+  /// A non-optional view of an optional binding; writing stores the value.
+  func orDefault<T: Sendable>(_ fallback: T) -> Binding<T> where Value == T? {
+    Binding<T>(get: { wrappedValue ?? fallback }, set: { wrappedValue = $0 })
+  }
 }
 
 private struct VolumeField: View {
@@ -105,174 +107,207 @@ private struct VolumeField: View {
   }
 }
 
+// Each field view edits a local copy and reports changes through `update`.
+
 private struct BottleFields: View {
-  let bottle: Bottle
+  @State private var value: Bottle
   let unit: VolumeUnit
   let update: (Bottle) -> Void
 
-  var body: some View {
-    Section {
-      DatePicker("Time", selection: field(\.startedAt), in: ...Date())
-      VolumeField(title: "Finished", ml: field(\.amountMl), unit: unit)
-      Picker("Contents", selection: field(\.contents)) {
-        ForEach(BottleContents.allCases, id: \.self) { Text($0.title).tag($0) }
-      }
-      VolumeField(
-        title: "Offered",
-        ml: binding(bottle.offeredMl ?? bottle.amountMl) { var b = bottle; b.offeredMl = $0; update(b) },
-        unit: unit)
-      TextField("Formula brand", text: binding(bottle.formulaBrand ?? "") { var b = bottle; b.formulaBrand = $0.isEmpty ? nil : $0; update(b) })
-      TextField("Note", text: field(\.note), axis: .vertical)
-    }
+  init(bottle: Bottle, unit: VolumeUnit, update: @escaping (Bottle) -> Void) {
+    _value = State(initialValue: bottle)
+    self.unit = unit
+    self.update = update
   }
 
-  private func field<V>(_ keyPath: WritableKeyPath<Bottle, V>) -> Binding<V> {
-    binding(bottle[keyPath: keyPath]) { var b = bottle; b[keyPath: keyPath] = $0; update(b) }
+  var body: some View {
+    Section {
+      DatePicker("Time", selection: $value.startedAt, in: ...Date())
+      VolumeField(title: "Finished", ml: $value.amountMl, unit: unit)
+      Picker("Contents", selection: $value.contents) {
+        ForEach(BottleContents.allCases, id: \.self) { Text($0.title).tag($0) }
+      }
+      VolumeField(title: "Offered", ml: $value.offeredMl.orDefault(value.amountMl), unit: unit)
+      TextField("Formula brand", text: $value.formulaBrand.orDefault(""))
+      TextField("Note", text: $value.note, axis: .vertical)
+    }
+    .onChange(of: value) { _, new in update(new) }
   }
 }
 
 private struct NursingFields: View {
-  let session: NursingSession
-  let segments: [NursingSegment]
+  @State private var session: NursingSession
+  @State private var segments: [NursingSegment]
+  @State private var minutes: [Double]
   let update: (NursingSession, [NursingSegment]) -> Void
+
+  init(session: NursingSession, segments: [NursingSegment], update: @escaping (NursingSession, [NursingSegment]) -> Void) {
+    _session = State(initialValue: session)
+    _segments = State(initialValue: segments)
+    _minutes = State(initialValue: segments.map { ($0.duration(now: Date()) / 60).rounded() })
+    self.update = update
+  }
 
   var body: some View {
     Section("Session") {
-      DatePicker(
-        "Started",
-        selection: binding(session.startedAt) { newStart in
-          // Move the whole session, keeping its shape.
-          let offset = newStart.timeIntervalSince(session.startedAt)
-          var s = session
-          s.startedAt = newStart
-          s.endedAt = s.endedAt?.addingTimeInterval(offset)
-          update(s, segments.map { var seg = $0; seg.startedAt += offset; seg.endedAt = seg.endedAt?.addingTimeInterval(offset); return seg })
-        },
-        in: ...Date())
-      if let ended = session.endedOnSide {
-        Picker("Ended on", selection: binding(ended) { var s = session; s.endedOnSide = $0; update(s, segments) }) {
-          ForEach(Side.allCases, id: \.self) { Text($0.title).tag($0) }
+      DatePicker("Started", selection: $session.startedAt, in: ...Date())
+      if session.endedOnSide != nil {
+        Picker("Ended on", selection: $session.endedOnSide) {
+          ForEach(Side.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
         }
       }
-      TextField("Latch note", text: binding(session.latchNote) { var s = session; s.latchNote = $0; update(s, segments) })
-      TextField("Note", text: binding(session.note) { var s = session; s.note = $0; update(s, segments) }, axis: .vertical)
+      TextField("Latch note", text: $session.latchNote)
+      TextField("Note", text: $session.note, axis: .vertical)
     }
     Section("Sides") {
-      ForEach(Array(segments.enumerated()), id: \.element.id) { index, segment in
-        Stepper(
-          value: binding((segment.duration(now: Date()) / 60).rounded()) { minutes in
-            var updated = segments
-            updated[index].endedAt = segment.startedAt.addingTimeInterval(max(0, minutes) * 60)
-            // Keep later segments back to back.
-            for i in updated.indices where i > index {
-              let length = updated[i].duration(now: Date())
-              updated[i].startedAt = updated[i - 1].endedAt ?? updated[i].startedAt
-              updated[i].endedAt = updated[i].startedAt.addingTimeInterval(length)
-            }
-            var s = session
-            if s.endedAt != nil { s.endedAt = updated.last?.endedAt }
-            update(s, updated)
-          },
-          in: 0...120
-        ) {
+      ForEach(segments.indices, id: \.self) { index in
+        Stepper(value: $minutes[index], in: 0...120) {
           HStack {
-            Text(segment.side.title)
+            Text(segments[index].side.title)
             Spacer()
-            Text(Durations.format(segment.duration(now: Date()))).monospacedDigit().foregroundStyle(.secondary)
+            Text("\(Int(minutes[index])) min").monospacedDigit().foregroundStyle(.secondary)
           }
         }
-        .disabled(segment.endedAt == nil)
+        .disabled(segments[index].endedAt == nil)
       }
     }
+    .onChange(of: session.startedAt) { old, new in
+      // Move the whole session, keeping its shape.
+      let offset = new.timeIntervalSince(old)
+      session.endedAt = session.endedAt?.addingTimeInterval(offset)
+      segments = segments.map {
+        var segment = $0
+        segment.startedAt = segment.startedAt.addingTimeInterval(offset)
+        segment.endedAt = segment.endedAt?.addingTimeInterval(offset)
+        return segment
+      }
+    }
+    .onChange(of: minutes) { _, new in
+      // Lay finished segments back to back with the edited lengths.
+      var cursor = segments.first?.startedAt ?? session.startedAt
+      for index in segments.indices where segments[index].endedAt != nil {
+        segments[index].startedAt = cursor
+        segments[index].endedAt = cursor.addingTimeInterval(max(0, new[index]) * 60)
+        cursor = segments[index].endedAt ?? cursor
+      }
+      if session.endedAt != nil { session.endedAt = segments.last?.endedAt }
+    }
+    .onChange(of: session) { _, new in update(new, segments) }
+    .onChange(of: segments) { _, new in update(session, new) }
   }
 }
 
 private struct PumpFields: View {
-  let pump: PumpSession
+  @State private var value: PumpSession
   let unit: VolumeUnit
   let update: (PumpSession) -> Void
 
+  init(pump: PumpSession, unit: VolumeUnit, update: @escaping (PumpSession) -> Void) {
+    _value = State(initialValue: pump)
+    self.unit = unit
+    self.update = update
+  }
+
   var body: some View {
     Section {
-      DatePicker("Started", selection: binding(pump.startedAt) { var p = pump; p.startedAt = $0; update(p) }, in: ...Date())
-      if let end = pump.endedAt {
-        DatePicker("Ended", selection: binding(end) { var p = pump; p.endedAt = $0; update(p) }, in: pump.startedAt...Date())
+      DatePicker("Started", selection: $value.startedAt, in: ...Date())
+      if value.endedAt != nil {
+        DatePicker("Ended", selection: $value.endedAt.orDefault(value.startedAt), in: value.startedAt...Date())
       }
-      VolumeField(title: "Left", ml: binding(pump.leftMl ?? 0) { var p = pump; p.leftMl = $0; update(p) }, unit: unit)
-      VolumeField(title: "Right", ml: binding(pump.rightMl ?? 0) { var p = pump; p.rightMl = $0; update(p) }, unit: unit)
-      Picker("Destination", selection: binding(pump.destination) { var p = pump; p.destination = $0; update(p) }) {
+      VolumeField(title: "Left", ml: $value.leftMl.orDefault(0), unit: unit)
+      VolumeField(title: "Right", ml: $value.rightMl.orDefault(0), unit: unit)
+      Picker("Destination", selection: $value.destination) {
         Text("None").tag(PumpDestination?.none)
         ForEach(PumpDestination.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
       }
-      TextField("Note", text: binding(pump.note) { var p = pump; p.note = $0; update(p) }, axis: .vertical)
+      TextField("Note", text: $value.note, axis: .vertical)
     }
+    .onChange(of: value) { _, new in update(new) }
   }
 }
 
 private struct DiaperFields: View {
-  let diaper: Diaper
+  @State private var value: Diaper
   let update: (Diaper) -> Void
+
+  init(diaper: Diaper, update: @escaping (Diaper) -> Void) {
+    _value = State(initialValue: diaper)
+    self.update = update
+  }
 
   var body: some View {
     Section {
-      DatePicker("Time", selection: binding(diaper.occurredAt) { var d = diaper; d.occurredAt = $0; update(d) }, in: ...Date())
-      Picker("Type", selection: binding(diaper.kind) { var d = diaper; d.kind = $0; update(d) }) {
+      DatePicker("Time", selection: $value.occurredAt, in: ...Date())
+      Picker("Type", selection: $value.kind) {
         ForEach(DiaperKind.allCases, id: \.self) { Text($0.title).tag($0) }
       }
-      if diaper.kind.hasStool {
-        Picker("Colour", selection: binding(diaper.stoolColor) { var d = diaper; d.stoolColor = $0; update(d) }) {
+      if value.kind.hasStool {
+        Picker("Colour", selection: $value.stoolColor) {
           Text("Not noted").tag(StoolColor?.none)
           ForEach(StoolColor.allCases, id: \.self) { color in
             Label { Text(color.title) } icon: { Circle().fill(color.swatch) }.tag(Optional(color))
           }
         }
-        Picker("Consistency", selection: binding(diaper.consistency) { var d = diaper; d.consistency = $0; update(d) }) {
+        Picker("Consistency", selection: $value.consistency) {
           Text("Not noted").tag(StoolConsistency?.none)
           ForEach(StoolConsistency.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
         }
       }
-      Picker("Size", selection: binding(diaper.size) { var d = diaper; d.size = $0; update(d) }) {
+      Picker("Size", selection: $value.size) {
         Text("Not noted").tag(DiaperSize?.none)
         ForEach(DiaperSize.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
       }
-      Toggle("Rash", isOn: binding(diaper.rash) { var d = diaper; d.rash = $0; update(d) })
-      TextField("Note", text: binding(diaper.note) { var d = diaper; d.note = $0; update(d) }, axis: .vertical)
+      Toggle("Rash", isOn: $value.rash)
+      TextField("Note", text: $value.note, axis: .vertical)
     }
+    .onChange(of: value) { _, new in update(new) }
   }
 }
 
 private struct SleepFields: View {
-  let sleep: SleepSession
+  @State private var value: SleepSession
   let update: (SleepSession) -> Void
+
+  init(sleep: SleepSession, update: @escaping (SleepSession) -> Void) {
+    _value = State(initialValue: sleep)
+    self.update = update
+  }
 
   var body: some View {
     Section {
-      DatePicker("Fell asleep", selection: binding(sleep.startedAt) { var s = sleep; s.startedAt = $0; update(s) }, in: ...Date())
-      if let end = sleep.endedAt {
-        DatePicker("Woke", selection: binding(end) { var s = sleep; s.endedAt = $0; update(s) }, in: sleep.startedAt...Date())
+      DatePicker("Fell asleep", selection: $value.startedAt, in: ...Date())
+      if value.endedAt != nil {
+        DatePicker("Woke", selection: $value.endedAt.orDefault(value.startedAt), in: value.startedAt...Date())
       }
-      Picker("Location", selection: binding(sleep.location) { var s = sleep; s.location = $0; update(s) }) {
+      Picker("Location", selection: $value.location) {
         Text("Not noted").tag(SleepLocation?.none)
         ForEach(SleepLocation.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
       }
-      TextField("Note", text: binding(sleep.note) { var s = sleep; s.note = $0; update(s) }, axis: .vertical)
+      TextField("Note", text: $value.note, axis: .vertical)
     }
+    .onChange(of: value) { _, new in update(new) }
   }
 }
 
 private struct NoteFields: View {
-  let note: BabyNote
+  @State private var value: BabyNote
   let update: (BabyNote) -> Void
+
+  init(note: BabyNote, update: @escaping (BabyNote) -> Void) {
+    _value = State(initialValue: note)
+    self.update = update
+  }
 
   var body: some View {
     Section {
-      DatePicker("Time", selection: binding(note.occurredAt) { var n = note; n.occurredAt = $0; update(n) }, in: ...Date())
-      Picker("Tag", selection: binding(note.tag) { var n = note; n.tag = $0; update(n) }) {
+      DatePicker("Time", selection: $value.occurredAt, in: ...Date())
+      Picker("Tag", selection: $value.tag) {
         Text("None").tag(NoteTag?.none)
         ForEach(NoteTag.allCases, id: \.self) { Text($0.title).tag(Optional($0)) }
       }
-      TextField("Note", text: binding(note.text) { var n = note; n.text = $0; update(n) }, axis: .vertical)
+      TextField("Note", text: $value.text, axis: .vertical)
         .lineLimit(3...10)
     }
+    .onChange(of: value) { _, new in update(new) }
   }
 }

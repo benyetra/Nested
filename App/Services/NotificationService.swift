@@ -102,11 +102,11 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
       switch action {
       case Action.logBottle:
         let snapshot = try? store.snapshot(now: Date())
-        try? store.logBottle(
+        _ = try? store.logBottle(
           amountMl: snapshot?.defaultBottleMl ?? 90, contents: snapshot?.defaultBottleContents ?? .formula,
           offeredMl: nil, formulaBrand: snapshot?.baby?.formulaBrand, at: Date(), note: "", endSleep: true)
       case Action.startNursing:
-        try? store.startNursing(side: nil, at: Date(), endSleep: true)
+        _ = try? store.startNursing(side: nil, at: Date(), endSleep: true)
       case Action.snooze:
         let content = UNMutableNotificationContent()
         content.title = "Feed reminder"

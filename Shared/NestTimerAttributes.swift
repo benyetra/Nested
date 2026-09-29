@@ -10,7 +10,7 @@
   /// The Cloudflare Worker sends the same JSON shape in push-to-start payloads, so keep the
   /// property names stable (see worker/src/index.js).
   struct NestTimerAttributes: ActivityAttributes {
-    struct ContentState: Codable, Hashable {
+    struct ContentState: Codable, Hashable, Sendable {
       /// Anchor for the total timer, excluding paused time.
       var timerStart: Date
       /// Start of the current nursing side, for the per-side timer.
