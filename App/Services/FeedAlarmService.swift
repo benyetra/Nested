@@ -47,7 +47,7 @@ final class FeedAlarmService {
 
   func requestAuthorization() async {
     if authorization == .notDetermined {
-      authorization = (try? await manager.requestAuthorization()) ?? manager.authorizationState
+      authorization = await Self.requestAlarmAuthorization() ?? manager.authorizationState
     } else {
       authorization = manager.authorizationState
     }
@@ -125,12 +125,24 @@ final class FeedAlarmService {
       secondaryIntent: secondaryIntent
     )
     do {
-      _ = try await manager.schedule(id: id, configuration: configuration)
+      try await Self.scheduleAlarm(id: id, configuration: configuration)
       scheduledID = id
       scheduledFireAt = fireAt
     } catch {
       await scheduleFallbackNotification(at: fireAt, babyName: babyName)
     }
+  }
+
+  // AlarmManager isn't Sendable: its async calls run off the main actor on the shared
+  // instance, so no main-actor-held reference is sent across isolation.
+  nonisolated private static func requestAlarmAuthorization() async -> AlarmManager.AuthorizationState? {
+    try? await AlarmManager.shared.requestAuthorization()
+  }
+
+  nonisolated private static func scheduleAlarm(
+    id: UUID, configuration: sending AlarmManager.AlarmConfiguration<FeedAlarmMetadata>
+  ) async throws {
+    _ = try await AlarmManager.shared.schedule(id: id, configuration: configuration)
   }
 
   private func cancelScheduled() {
