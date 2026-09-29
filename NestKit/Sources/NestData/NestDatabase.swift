@@ -66,6 +66,7 @@ public enum NestDatabase {
         DeviceToken.self,
         FeedAlarm.self,
         EntryRevision.self,
+        Question.self,
         containerIdentifier: containerIdentifier,
         startImmediately: startImmediately,
         delegate: delegate

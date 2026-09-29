@@ -258,3 +258,16 @@ public struct RevisionsRequest: FetchKeyRequest {
     try EntryRevision.where { $0.entryID.eq(entryID) }.order { $0.editedAt.desc() }.fetchAll(db)
   }
 }
+
+/// Open questions first (oldest first, so they read in the order they were thought of),
+/// then answered ones, most recently answered first.
+public struct QuestionsRequest: FetchKeyRequest {
+  public init() {}
+  public func fetch(_ db: Database) throws -> [Question] {
+    guard let baby = try LiveEventStore.currentBaby(db) else { return [] }
+    let all = try Question.where { $0.babyID.eq(baby.id) }.fetchAll(db)
+    let open = all.filter { !$0.isDone }.sorted { $0.createdAt < $1.createdAt }
+    let done = all.filter(\.isDone).sorted { ($0.doneAt ?? $0.editedAt) > ($1.doneAt ?? $1.editedAt) }
+    return open + done
+  }
+}

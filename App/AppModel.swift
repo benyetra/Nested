@@ -6,6 +6,7 @@ enum AppTab: Hashable {
   case now
   case timeline
   case trends
+  case questions
   case settings
 }
 

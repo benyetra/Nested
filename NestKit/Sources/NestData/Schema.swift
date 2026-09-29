@@ -237,6 +237,22 @@ public struct BabyNote: Identifiable, Hashable, Sendable, Codable {
   public var editedAt: Date
 }
 
+/// A question to ask the pediatrician, and the answer written down at the appointment.
+/// `body` and `answer` hold `RichText.stored` strings. `isDone` is the to-do checkbox.
+@Table("questions")
+public struct Question: Identifiable, Hashable, Sendable, Codable {
+  public let id: UUID
+  public var babyID: Baby.ID
+  public var body = ""
+  public var answer = ""
+  public var isDone = false
+  public var doneAt: Date?
+  public var askedBy = ""
+  public var answeredBy = ""
+  public var createdAt: Date
+  public var editedAt: Date
+}
+
 /// One row per installed device: Live Activity push tokens for the Worker, plus the
 /// device's alarm-armed state for the bedtime confirmation.
 @Table("deviceTokens")
@@ -525,6 +541,30 @@ public enum NestSchema {
             """)
       }
     }
+    migrator.registerMigration("v2: questions") { db in
+      try #sql(
+        """
+        CREATE TABLE "questions" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "babyID" TEXT NOT NULL REFERENCES "babies"("id") ON DELETE CASCADE,
+          "body" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "answer" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "isDone" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0,
+          "doneAt" TEXT,
+          "askedBy" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "answeredBy" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "createdAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now')),
+          "editedAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now'))
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try db.execute(
+        sql: """
+          CREATE INDEX IF NOT EXISTS "idx_questions_babyID" ON "questions"("babyID")
+          """)
+    }
+
     return migrator
   }()
 

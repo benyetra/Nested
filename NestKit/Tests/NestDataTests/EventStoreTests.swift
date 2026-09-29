@@ -333,3 +333,43 @@ struct DeleteAllTests {
     #expect(try store.database.read { db in try FeedAlarm.all.fetchCount(db) } == 0)
   }
 }
+
+
+@Suite("Questions", .serialized)
+struct QuestionTests {
+  @Test("Add, answer, toggle, restore and delete")
+  func lifecycle() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+
+    let q = try store.addQuestion(RichText(runs: [RichRun("Is this "), RichRun("spit up", bold: true), RichRun(" normal?")]))
+    #expect(RichText(stored: q.body).plain == "Is this spit up normal?")
+    #expect(q.askedBy == "Bennett" && !q.isDone)
+
+    clock.advance(minutes: 5)
+    try store.setQuestionDone(id: q.id, done: true)
+    try store.setQuestionDone(id: q.id, done: false)
+
+    try store.updateQuestion(id: q.id, body: RichText(stored: q.body), answer: RichText(plain: "Totally normal"))
+    let updated = try #require(store.questions().first)
+    #expect(updated.isDone && updated.doneAt != nil)
+    #expect(RichText(stored: updated.answer).plain == "Totally normal")
+
+    try store.deleteQuestion(id: q.id)
+    #expect(try store.questions().isEmpty)
+    try store.restoreQuestion(updated)
+    #expect(try store.questions().count == 1)
+  }
+
+  @Test("Rich text round-trips and merges runs; plain strings still read")
+  func richText() {
+    let text = RichText(runs: [RichRun("a"), RichRun("b"), RichRun("c", bold: true), RichRun("")])
+    #expect(text.runs.count == 2)
+    #expect(RichText(stored: text.stored) == text)
+    #expect(RichText(stored: "just words").plain == "just words")
+    #expect(RichText(stored: "[not json").plain == "[not json")
+    #expect(RichText(plain: "  \n").isEmpty)
+    #expect(RichText().stored == "")
+  }
+}

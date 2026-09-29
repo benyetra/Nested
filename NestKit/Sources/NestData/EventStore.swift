@@ -95,6 +95,16 @@ public protocol EventStore: Sendable {
   func setFeedAlarm(fireAt: Date?, manual: Bool) throws
   func handleFeedAlarm() throws
 
+  // Pediatrician questions
+  @discardableResult
+  func addQuestion(_ body: RichText) throws -> Question
+  /// Saves new text and/or an answer. A non-empty answer checks the question off.
+  func updateQuestion(id: UUID, body: RichText, answer: RichText) throws
+  func setQuestionDone(id: UUID, done: Bool) throws
+  func deleteQuestion(id: UUID) throws
+  /// Puts a deleted question back (undo).
+  func restoreQuestion(_ question: Question) throws
+
   // Devices
   func updateDevice(_ update: (inout DeviceToken) -> Void) throws
 
@@ -608,6 +618,61 @@ public struct LiveEventStore: EventStore {
     try database.read { db in
       try EntryRevision.where { $0.entryID.eq(entryID) }.order { $0.editedAt.desc() }.fetchAll(db)
     }
+  }
+
+  // MARK: Questions
+
+  public func addQuestion(_ body: RichText) throws -> Question {
+    let stamp = now()
+    return try database.write { db in
+      let baby = try requireBaby(db)
+      let question = Question(
+        id: UUID(), babyID: baby.id, body: body.stored, askedBy: owner(), createdAt: stamp,
+        editedAt: stamp)
+      try Question.insert { question }.execute(db)
+      return question
+    }
+  }
+
+  public func updateQuestion(id: UUID, body: RichText, answer: RichText) throws {
+    let stamp = now()
+    try database.write { db in
+      guard var question = try Question.find(id).fetchOne(db) else { throw StoreError.notFound }
+      question.body = body.stored
+      if question.answer != answer.stored {
+        question.answer = answer.stored
+        question.answeredBy = answer.isEmpty ? "" : owner()
+        if !answer.isEmpty, !question.isDone {
+          question.isDone = true
+          question.doneAt = stamp
+        }
+      }
+      question.editedAt = stamp
+      try Question.update(question).execute(db)
+    }
+  }
+
+  public func setQuestionDone(id: UUID, done: Bool) throws {
+    let stamp = now()
+    try database.write { db in
+      guard var question = try Question.find(id).fetchOne(db) else { throw StoreError.notFound }
+      question.isDone = done
+      question.doneAt = done ? stamp : nil
+      question.editedAt = stamp
+      try Question.update(question).execute(db)
+    }
+  }
+
+  public func questions() throws -> [Question] {
+    try database.read { db in try QuestionsRequest().fetch(db) }
+  }
+
+  public func deleteQuestion(id: UUID) throws {
+    try database.write { db in try Question.find(id).delete().execute(db) }
+  }
+
+  public func restoreQuestion(_ question: Question) throws {
+    try database.write { db in try Question.upsert { question }.execute(db) }
   }
 
   // MARK: Feed alarm

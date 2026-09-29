@@ -57,6 +57,7 @@ struct RootView: View {
         Tab("Now", systemImage: "house.fill", value: AppTab.now) { NowView().undoToastHost() }
         Tab("Timeline", systemImage: "list.bullet", value: AppTab.timeline) { TimelineScreen().undoToastHost() }
         Tab("Trends", systemImage: "chart.bar.xaxis", value: AppTab.trends) { TrendsView().undoToastHost() }
+        Tab("Doctor", systemImage: "stethoscope", value: AppTab.questions) { QuestionsView().undoToastHost() }
         Tab("Settings", systemImage: "gearshape", value: AppTab.settings) { SettingsView().undoToastHost() }
       }
       .tabViewBottomAccessory {
