@@ -7,6 +7,11 @@ public struct ActiveNursing: Hashable, Sendable {
   public var session: NursingSession
   public var segments: [NursingSegment]
 
+  public init(session: NursingSession, segments: [NursingSegment]) {
+    self.session = session
+    self.segments = segments
+  }
+
   public var currentSide: Side { NursingMath.currentSide(segments) ?? .left }
   public var isPaused: Bool { session.isPaused }
   /// Start of the open segment, for a live per-side timer.
