@@ -28,10 +28,10 @@ enum SharedStore {
           try $0.bootstrapNest(sync: .deferred)
         }
         @Dependency(\.defaultDatabase) var database
-        let store = LiveEventStore(database: database) { _ in
+        let store = LiveEventStore(database: database, onChange: { _ in
           NestDatabase.postExternalWrite()
           SharedStore.reloadSurfaces()
-        }
+        })
         configured = store
         return store
       }

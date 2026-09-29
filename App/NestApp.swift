@@ -21,9 +21,9 @@ struct NestApp: App {
       prepareDependencies { $0.defaultDatabase = try! NestDatabase.openInMemory() }
     }
     @Dependency(\.defaultDatabase) var database
-    let store = LiveEventStore(database: database) { change in
+    let store = LiveEventStore(database: database, onChange: { change in
       Task { @MainActor in SideEffects.shared.handle(change) }
-    }
+    })
     SharedStore.configure(store)
     _model = State(initialValue: AppModel(store: store))
     SideEffects.shared.start(store: store)

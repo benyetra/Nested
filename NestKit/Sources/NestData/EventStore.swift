@@ -128,6 +128,8 @@ extension EventStore {
 public struct LiveEventStore: EventStore {
   public let database: any DatabaseWriter
   let owner: @Sendable () -> String
+  /// This install's `DeviceToken` row id.
+  let deviceID: UUID
   let now: @Sendable () -> Date
   let calendar: Calendar
   let onChange: @Sendable (StoreChange) -> Void
@@ -135,12 +137,14 @@ public struct LiveEventStore: EventStore {
   public init(
     database: any DatabaseWriter,
     owner: @escaping @Sendable () -> String = { DevicePrefs.ownerName },
+    deviceID: UUID = DevicePrefs.deviceID,
     now: @escaping @Sendable () -> Date = { Date() },
     calendar: Calendar = .current,
     onChange: @escaping @Sendable (StoreChange) -> Void = { _ in }
   ) {
     self.database = database
     self.owner = owner
+    self.deviceID = deviceID
     self.now = now
     self.calendar = calendar
     self.onChange = onChange
@@ -666,7 +670,7 @@ public struct LiveEventStore: EventStore {
   public func updateDevice(_ update: (inout DeviceToken) -> Void) throws {
     try database.write { db in
       let baby = try requireBaby(db)
-      let id = DevicePrefs.deviceID
+      let id = deviceID
       if var device = try DeviceToken.find(id).fetchOne(db) {
         let before = device
         update(&device)

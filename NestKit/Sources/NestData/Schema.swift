@@ -168,7 +168,7 @@ public struct NursingSegment: Identifiable, Hashable, Sendable, Codable {
   public var endedAt: Date?
 
   public func duration(now: Date) -> TimeInterval {
-    max(0, (endedAt ?? now).timeIntervalSince(startedAt))
+    Swift.max(0, (endedAt ?? now).timeIntervalSince(startedAt))
   }
 }
 
@@ -294,7 +294,7 @@ public struct EntryRevision: Identifiable, Hashable, Sendable, Codable {
 
 public enum NestSchema {
   /// Tables synchronized and shared through CloudKit, parents before children.
-  nonisolated(unsafe) public static let migrator: DatabaseMigrator = {
+  public static let migrator: DatabaseMigrator = {
     var migrator = DatabaseMigrator()
     migrator.registerMigration("v1: create tables") { db in
       try #sql(

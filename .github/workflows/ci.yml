@@ -62,7 +62,10 @@ jobs:
         run: brew install xcodegen
 
       - name: Generate project
-        run: xcodegen generate
+        run: |
+          xcodegen generate
+          # Report every target's errors in one run instead of stopping at the first.
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
 
       - name: Build (iOS Simulator, includes widgets and watch app)
         run: |

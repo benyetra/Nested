@@ -15,7 +15,7 @@ struct NestWatchApp: App {
       prepareDependencies { $0.defaultDatabase = try! NestDatabase.openInMemory() }
     }
     @Dependency(\.defaultDatabase) var database
-    SharedStore.configure(LiveEventStore(database: database) { _ in SharedStore.reloadSurfaces() })
+    SharedStore.configure(LiveEventStore(database: database, onChange: { _ in SharedStore.reloadSurfaces() }))
   }
 
   var body: some Scene {
