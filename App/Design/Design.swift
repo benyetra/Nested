@@ -136,6 +136,16 @@ struct PrimaryButton: View {
     .buttonStyle(.borderedProminent)
     .buttonBorderShape(.capsule)
     .tint(tint)
+    // Content scrolling under the button fades out instead of showing through.
+    .background(alignment: .bottom) {
+      Rectangle()
+        .fill(.background)
+        .mask(LinearGradient(colors: [.clear, .black, .black], startPoint: .top, endPoint: .bottom))
+        .padding(.top, -24)
+        .padding(.horizontal, -20)
+        .padding(.bottom, -40)
+        .allowsHitTesting(false)
+    }
   }
 }
 

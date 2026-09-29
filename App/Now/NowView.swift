@@ -15,7 +15,6 @@ struct NowView: View {
       TimelineView(.periodic(from: .now, by: 30)) { context in
         ScrollView {
           VStack(spacing: 14) {
-            header(now: context.date)
             flagsCard(now: context.date)
             timersSection(now: context.date)
             statusTiles(now: context.date)
@@ -34,7 +33,10 @@ struct NowView: View {
           .padding(.horizontal)
           .padding(.bottom, 6)
       }
-      .toolbar(.hidden, for: .navigationBar)
+      // A real navigation bar, so content scrolls under a proper edge effect instead of
+      // colliding with the status bar.
+      .navigationTitle(snapshot.babyName)
+      .navigationSubtitle(ageText)
     }
     .sheet(item: sheetRoute) { route in
       LogSheet(kind: route.kind, snapshot: snapshot)
@@ -48,26 +50,8 @@ struct NowView: View {
 
   // MARK: Sections
 
-  private func header(now: Date) -> some View {
-    HStack(alignment: .firstTextBaseline) {
-      VStack(alignment: .leading, spacing: 2) {
-        Text(snapshot.babyName)
-          .font(.largeTitle.weight(.bold))
-          .tracking(-0.5)
-        if let birth = snapshot.baby?.birthDate {
-          Text(AgeMath.label(birth: birth, now: now))
-            .font(.subheadline)
-            .foregroundStyle(.secondary)
-        }
-      }
-      Spacer()
-      Text(now, format: .dateTime.hour().minute())
-        .font(.status(.title3))
-        .monospacedDigit()
-        .foregroundStyle(.secondary)
-    }
-    .padding(.top, 8)
-    .accessibilityElement(children: .combine)
+  private var ageText: String {
+    snapshot.baby?.birthDate.map { AgeMath.label(birth: $0, now: Date()) } ?? ""
   }
 
   @ViewBuilder

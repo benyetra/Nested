@@ -6,6 +6,8 @@ import SwiftUI
 struct LogSheet: View {
   let kind: EventKind
   let snapshot: NestSnapshot
+  // Open tall so the fields never sit behind the log button; drag down for the half sheet.
+  @State private var detent: PresentationDetent = .large
 
   var body: some View {
     NavigationStack {
@@ -25,7 +27,7 @@ struct LogSheet: View {
         ToolbarItem(placement: .cancellationAction) { CloseButton() }
       }
     }
-    .presentationDetents([.medium, .large])
+    .presentationDetents([.medium, .large], selection: $detent)
     .presentationDragIndicator(.visible)
     .presentationBackgroundInteraction(.enabled(upThrough: .medium))
   }
