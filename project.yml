@@ -30,6 +30,14 @@ targets:
   Nest:
     type: application
     platform: iOS
+    attributes:
+      SystemCapabilities:
+        com.apple.iCloud:
+          enabled: 1
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
+        com.apple.Push:
+          enabled: 1
     sources:
       - path: App
       - path: Shared
@@ -45,6 +53,12 @@ targets:
           subpath: $(CONTENTS_FOLDER_PATH)/Watch
     entitlements:
       path: App/Nest.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.usernotifications.time-sensitive: true
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.yetra.nest]
+        com.apple.developer.icloud-services: [CloudKit]
+        com.apple.security.application-groups: [group.com.yetra.nest]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest
@@ -61,6 +75,12 @@ targets:
   NestWidgets:
     type: app-extension
     platform: iOS
+    attributes:
+      SystemCapabilities:
+        com.apple.iCloud:
+          enabled: 1
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: Widgets
       - path: Shared
@@ -71,6 +91,10 @@ targets:
         product: NestData
     entitlements:
       path: Widgets/NestWidgets.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.yetra.nest]
+        com.apple.developer.icloud-services: [CloudKit]
+        com.apple.security.application-groups: [group.com.yetra.nest]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest.widgets
@@ -82,6 +106,12 @@ targets:
   NestWatch:
     type: application
     platform: watchOS
+    attributes:
+      SystemCapabilities:
+        com.apple.iCloud:
+          enabled: 1
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: Watch
       - path: Shared/EventStyle.swift
@@ -95,6 +125,11 @@ targets:
       - target: NestWatchWidgets
     entitlements:
       path: Watch/NestWatch.entitlements
+      properties:
+        aps-environment: development
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.yetra.nest]
+        com.apple.developer.icloud-services: [CloudKit]
+        com.apple.security.application-groups: [group.com.yetra.nest]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest.watchkitapp
@@ -106,6 +141,12 @@ targets:
   NestWatchWidgets:
     type: app-extension
     platform: watchOS
+    attributes:
+      SystemCapabilities:
+        com.apple.iCloud:
+          enabled: 1
+        com.apple.ApplicationGroups.iOS:
+          enabled: 1
     sources:
       - path: WatchWidgets
       - path: Shared/EventStyle.swift
@@ -118,6 +159,10 @@ targets:
         product: NestData
     entitlements:
       path: WatchWidgets/NestWatchWidgets.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers: [iCloud.com.yetra.nest]
+        com.apple.developer.icloud-services: [CloudKit]
+        com.apple.security.application-groups: [group.com.yetra.nest]
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.yetra.nest.watchkitapp.widgets

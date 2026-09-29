@@ -14,15 +14,15 @@ A private, two-parent iOS app that logs every feed, diaper, nap and pump in unde
 | `Watch/`, `WatchWidgets/` | Apple Watch app and complications |
 | `Tests/` | Swift Testing tests for every App Intent (hosted in the app) |
 | `worker/` | Cloudflare Worker that sends APNs Live Activity and background pushes to the partner's phone |
-| `project.yml` | XcodeGen spec |
+| `project.yml` | XcodeGen spec (source of truth for targets, entitlements and capabilities) |
 
 ## Build
 
 ```sh
-brew install xcodegen
-xcodegen generate
 open Nest.xcodeproj
 ```
+
+`Nest.xcodeproj` is committed, so you can just open it and keep your Xcode signing changes. You only need XcodeGen when you add or remove files or targets, or change `project.yml`: `brew install xcodegen && xcodegen generate`. Entitlements and capabilities live in `project.yml`, so regenerating keeps them; edit them there, not in Xcode's Signing & Capabilities tab, or a later regenerate will overwrite your change. (New Swift files inside existing folders need no regenerate if you add them from Xcode.)
 
 To run the logic tests without Xcode: `cd NestKit && swift test`. They also run on Linux; install `libsqlite3-dev` first.
 

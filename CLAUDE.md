@@ -17,4 +17,4 @@
   - a 200 ms cross-fade under Reduce Motion
 - **Colour.** Each event type has one colour (`EventKind.color`), used on every surface.
 - **Dependencies.** Don't add a dependency without asking. SQLiteData is pinned to an exact version.
-- **After editing.** Run `cd NestKit && swift test`, then `xcodegen generate` and build the `Nest` scheme.
+- **After editing.** Run `cd NestKit && swift test`, then `xcodegen generate` (regenerates the committed `Nest.xcodeproj`; commit it with the change) and build the `Nest` scheme. Entitlements are defined in `project.yml`, not edited by hand.

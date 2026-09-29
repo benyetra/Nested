@@ -1,7 +1,8 @@
 .build/
 .swiftpm/
-*.xcodeproj/
 xcuserdata/
 DerivedData/
 worker/node_modules/
 worker/.wrangler/
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
