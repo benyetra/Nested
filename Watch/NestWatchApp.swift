@@ -9,12 +9,13 @@ import SwiftUI
 struct NestWatchApp: App {
   init() {
     @Dependency(\.context) var context
+    let database: any DatabaseWriter
     if context == .live {
-      try! prepareDependencies { try $0.bootstrapNest(sync: .live) }
+      database = NestBootstrap.run(sync: .live)
     } else {
-      prepareDependencies { $0.defaultDatabase = try! NestDatabase.openInMemory() }
+      database = try! NestDatabase.openInMemory()
+      prepareDependencies { $0.defaultDatabase = database }
     }
-    @Dependency(\.defaultDatabase) var database
     SharedStore.configure(LiveEventStore(database: database, onChange: { _ in SharedStore.reloadSurfaces() }))
   }
 

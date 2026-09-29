@@ -13,14 +13,13 @@ struct NestApp: App {
 
   init() {
     @Dependency(\.context) var context
+    let database: any DatabaseWriter
     if context == .live {
-      try! prepareDependencies {
-        try $0.bootstrapNest(sync: .live, delegate: NestSyncDelegate.shared)
-      }
+      database = NestBootstrap.run(sync: .live, delegate: NestSyncDelegate.shared)
     } else {
-      prepareDependencies { $0.defaultDatabase = try! NestDatabase.openInMemory() }
+      database = try! NestDatabase.openInMemory()
+      prepareDependencies { $0.defaultDatabase = database }
     }
-    @Dependency(\.defaultDatabase) var database
     let store = LiveEventStore(database: database, onChange: { change in
       Task { @MainActor in SideEffects.shared.handle(change) }
     })
@@ -54,13 +53,11 @@ struct NestApp: App {
 @MainActor
 final class SyncCoordinator {
   static let shared = SyncCoordinator()
-  @Dependency(\.defaultSyncEngine) private var syncEngine
   private var restarting = false
 
   func restartSync() {
-    guard !restarting else { return }
+    guard !restarting, let engine = NestBootstrap.syncEngine else { return }
     restarting = true
-    let engine = syncEngine
     Task {
       defer { restarting = false }
       engine.stop()
@@ -70,7 +67,7 @@ final class SyncCoordinator {
   }
 
   func fetch() async {
-    try? await syncEngine.fetchChanges()
+    try? await NestBootstrap.syncEngine?.fetchChanges()
   }
 
   func observeExtensionWrites() {
@@ -144,7 +141,6 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
 /// Accepts the partner's iCloud share invite.
 final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
-  @Dependency(\.defaultSyncEngine) private var syncEngine
   var window: UIWindow?
 
   func windowScene(_ windowScene: UIWindowScene, userDidAcceptCloudKitShareWith cloudKitShareMetadata: CKShare.Metadata) {
@@ -157,7 +153,7 @@ final class SceneDelegate: UIResponder, UIWindowSceneDelegate {
   }
 
   private func accept(_ metadata: CKShare.Metadata) {
-    let engine = syncEngine
+    guard let engine = NestBootstrap.syncEngine else { return }
     // Record names are "<id>:<table>"; show the shared baby from now on.
     let sharedBabyID = metadata.hierarchicalRootRecordID
       .flatMap { $0.recordName.split(separator: ":").first }

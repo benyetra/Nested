@@ -24,10 +24,7 @@ enum SharedStore {
     get throws {
       try lock.withLock {
         if let configured { return configured }
-        try prepareDependencies {
-          try $0.bootstrapNest(sync: .deferred)
-        }
-        @Dependency(\.defaultDatabase) var database
+        let database = NestBootstrap.run(sync: .deferred)
         let store = LiveEventStore(database: database, onChange: { _ in
           NestDatabase.postExternalWrite()
           SharedStore.reloadSurfaces()
@@ -46,5 +43,46 @@ enum SharedStore {
         ControlCenter.shared.reloadAllControls()
       #endif
     #endif
+  }
+}
+
+/// Opens the database and sync engine for a process without ever crashing on a setup
+/// problem (missing App Group or iCloud capability). Problems are collected so the app can
+/// explain them instead.
+enum NestBootstrap {
+  nonisolated(unsafe) private(set) static var syncEngine: SyncEngine?
+  nonisolated(unsafe) private(set) static var problems: [String] = []
+
+  static func run(sync: NestSyncMode, delegate: (any SyncEngineDelegate)? = nil) -> any DatabaseWriter {
+    var problems: [String] = []
+    if NestDatabase.fileURL == nil {
+      problems.append(
+        "The App Group \(DevicePrefs.appGroup) isn't available, so entries are kept in memory only "
+          + "and widgets can't see them. Add the App Groups capability in Signing & Capabilities.")
+    }
+    let database: any DatabaseWriter
+    do {
+      database = try NestDatabase.openShared()
+    } catch {
+      problems.append("Couldn't open the database: \(error.localizedDescription)")
+      database = try! NestDatabase.openInMemory()
+    }
+    if sync != .none {
+      do {
+        syncEngine = try NestDatabase.makeSyncEngine(
+          for: database, startImmediately: sync == .live, delegate: delegate)
+      } catch {
+        problems.append(
+          "iCloud sync is off (\(error)). Check the iCloud capability with CloudKit and the "
+            + "container \(NestDatabase.containerIdentifier), and that this device is signed in to iCloud.")
+      }
+    }
+    let engine = syncEngine
+    prepareDependencies {
+      $0.defaultDatabase = database
+      if let engine { $0.defaultSyncEngine = engine }
+    }
+    self.problems = problems
+    return database
   }
 }

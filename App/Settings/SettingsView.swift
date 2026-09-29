@@ -8,7 +8,6 @@ import UniformTypeIdentifiers
 struct SettingsView: View {
   @Environment(AppModel.self) private var model
   @Fetch(SnapshotRequest()) private var snapshot = NestSnapshot.empty
-  @Dependency(\.defaultSyncEngine) private var syncEngine
 
   @AppStorage(NotificationService.feedReminderKey) private var feedReminders = false
   @State private var nightMode = DevicePrefs.nightMode
@@ -35,6 +34,15 @@ struct SettingsView: View {
 
   private func form(_ baby: Baby) -> some View {
     Form {
+      if !NestBootstrap.problems.isEmpty {
+        Section("Setup needed") {
+          ForEach(NestBootstrap.problems, id: \.self) { problem in
+            Label(problem, systemImage: "exclamationmark.triangle.fill")
+              .font(.footnote)
+              .foregroundStyle(.orange)
+          }
+        }
+      }
       Section("Baby") {
         TextField("Name", text: bind(baby, \.name))
         DatePicker(
@@ -120,7 +128,10 @@ struct SettingsView: View {
       }
     }
     .sheet(item: $sharedRecord) { record in
-      CloudSharingView(sharedRecord: record, availablePermissions: [.allowPrivate, .allowReadWrite])
+      if let syncEngine = NestBootstrap.syncEngine {
+        CloudSharingView(
+          sharedRecord: record, availablePermissions: [.allowPrivate, .allowReadWrite], syncEngine: syncEngine)
+      }
     }
     .fileImporter(isPresented: $importing, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
       importCSV(result)
@@ -285,6 +296,10 @@ struct SettingsView: View {
       defer { isSharing = false }
       do {
         let title = "Join \(baby.name.isEmpty ? "our baby" : baby.name) in Nest"
+        guard let syncEngine = NestBootstrap.syncEngine else {
+          model.errorMessage = NestBootstrap.problems.last ?? "iCloud sync isn't set up on this device."
+          return
+        }
         sharedRecord = try await syncEngine.share(record: baby) { share in
           share[CKShare.SystemFieldKey.title] = title
         }

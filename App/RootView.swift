@@ -36,6 +36,12 @@ struct RootView: View {
       Text(model.errorMessage ?? "")
     }
     // Haptic, visual and state change on the same frame.
+    .task {
+      // Explain setup problems (e.g. a missing capability) instead of crashing at launch.
+      if let problem = NestBootstrap.problems.first, model.errorMessage == nil {
+        model.errorMessage = problem
+      }
+    }
     .sensoryFeedback(.success, trigger: model.successTick)
     .sensoryFeedback(.impact(weight: .medium), trigger: model.impactTick)
     .sensoryFeedback(.selection, trigger: model.selectionTick)
