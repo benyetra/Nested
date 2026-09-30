@@ -14,6 +14,7 @@ A private, two-parent iOS app that logs every feed, diaper, nap and pump in unde
 | `Watch/`, `WatchWidgets/` | Apple Watch app and complications |
 | `Tests/` | Swift Testing tests for every App Intent (hosted in the app) |
 | `worker/` | Cloudflare Worker that sends APNs Live Activity and background pushes to the partner's phone |
+| `mcp/` | MCP server that turns Huckleberry exports, or text and screenshots from other trackers (Nanit…), into a file Nest imports |
 | `project.yml` | XcodeGen spec (source of truth for targets, entitlements and capabilities) |
 
 ## Build

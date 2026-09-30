@@ -7,3 +7,4 @@ worker/.wrangler/
 *.xcodeproj/xcuserdata/
 *.xcodeproj/project.xcworkspace/xcuserdata/
 .DS_Store
+mcp/node_modules/

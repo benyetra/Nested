@@ -1,0 +1,12 @@
+type,started_at,ended_at,amount_ml,offered_ml,contents,formula_brand,left_seconds,right_seconds,ended_on_side,left_ml,right_ml,destination,diaper,stool_color,consistency,size,rash,location,tag,note,logged_by,time_zone
+diaper,2026-09-27T03:13:00Z,,,,,,,,,,,,mixed,,,large,,,,,,America/New_York
+sleep,2026-09-27T10:00:00Z,2026-09-27T11:50:00Z,,,,,,,,,,,,,,,,,,,,America/New_York
+note,2026-09-27T12:00:00Z,,,,,,,,,,,,,,,,,,medicine,"Medication: Drops, Vitamin D, 1ml",,America/New_York
+pump,2026-09-27T16:01:00Z,,,,,,,,,7.4,,,,,,,,,,,,America/New_York
+nursing,2026-09-27T21:20:00Z,2026-09-27T22:09:00Z,,,,,1500,1440,left,,,,,,,,,,,,,America/New_York
+diaper,2026-09-28T02:01:00Z,,,,,,,,,,,,wet,,,medium,,,,,,America/New_York
+diaper,2026-09-28T02:19:00Z,,,,,,,,,,,,dirty,black,,medium,,,,,,America/New_York
+bottle,2026-09-28T02:20:00Z,,20,,breastMilk,,,,,,,,,,,,,,,,,America/New_York
+nursing,2026-09-28T06:49:00Z,2026-09-28T07:03:00Z,,,,,0,840,right,,,,,,,,,,,,,America/New_York
+nursing,2026-09-28T09:51:00Z,2026-09-28T10:19:00Z,,,,,1680,0,left,,,,,,,,,,,,,America/New_York
+pump,2026-09-28T10:35:00Z,,,,,,,,,0,20,,,,,,,,,,,America/New_York

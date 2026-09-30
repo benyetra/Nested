@@ -123,3 +123,45 @@ struct HuckleberryImportTests {
     #expect(try EntryRow.parse(csv: csv).count == 11)
   }
 }
+
+
+@Suite("MCP output compatibility")
+struct McpCompatibilityTests {
+  /// What `mcp/` (Node) writes for the sample Huckleberry export in America/New_York
+  /// (mcp/test/fixtures/expected-nest.csv). The Nest importer must read it, and get the same
+  /// entries as the in-app Huckleberry importer does from the same export.
+  private static let mcpOutput = """
+type,started_at,ended_at,amount_ml,offered_ml,contents,formula_brand,left_seconds,right_seconds,ended_on_side,left_ml,right_ml,destination,diaper,stool_color,consistency,size,rash,location,tag,note,logged_by,time_zone
+diaper,2026-09-27T03:13:00Z,,,,,,,,,,,,mixed,,,large,,,,,,America/New_York
+sleep,2026-09-27T10:00:00Z,2026-09-27T11:50:00Z,,,,,,,,,,,,,,,,,,,,America/New_York
+note,2026-09-27T12:00:00Z,,,,,,,,,,,,,,,,,,medicine,"Medication: Drops, Vitamin D, 1ml",,America/New_York
+pump,2026-09-27T16:01:00Z,,,,,,,,,7.4,,,,,,,,,,,,America/New_York
+nursing,2026-09-27T21:20:00Z,2026-09-27T22:09:00Z,,,,,1500,1440,left,,,,,,,,,,,,,America/New_York
+diaper,2026-09-28T02:01:00Z,,,,,,,,,,,,wet,,,medium,,,,,,America/New_York
+diaper,2026-09-28T02:19:00Z,,,,,,,,,,,,dirty,black,,medium,,,,,,America/New_York
+bottle,2026-09-28T02:20:00Z,,20,,breastMilk,,,,,,,,,,,,,,,,,America/New_York
+nursing,2026-09-28T06:49:00Z,2026-09-28T07:03:00Z,,,,,0,840,right,,,,,,,,,,,,,America/New_York
+nursing,2026-09-28T09:51:00Z,2026-09-28T10:19:00Z,,,,,1680,0,left,,,,,,,,,,,,,America/New_York
+pump,2026-09-28T10:35:00Z,,,,,,,,,0,20,,,,,,,,,,,America/New_York
+"""
+
+  @Test("Nest's CSV importer reads the MCP file and matches the in-app Huckleberry import")
+  func matchesInAppImport() throws {
+    let fromMcp = try EntryRow.parse(csv: Self.mcpOutput)
+    let inApp = try HuckleberryImport.parse(data: Data(huckleberryCSV.utf8), timeZone: newYork).rows
+    #expect(fromMcp.count == 11)
+    #expect(fromMcp.count == inApp.count)
+    for (a, b) in zip(fromMcp, inApp) {
+      #expect(a.kind == b.kind)
+      #expect(a.startedAt == b.startedAt)
+      #expect(a.endedAt == b.endedAt)
+      #expect(a.amountMl == b.amountMl)
+      #expect(a.leftSeconds == b.leftSeconds && a.rightSeconds == b.rightSeconds)
+      #expect(a.endedOnSide == b.endedOnSide)
+      #expect(a.diaper == b.diaper && a.stoolColor == b.stoolColor && a.size == b.size)
+      #expect(a.note == b.note && a.tag == b.tag)
+      if let x = a.leftMl, let y = b.leftMl { #expect(abs(x - y) < 0.06) } else { #expect(a.leftMl == b.leftMl) }
+      #expect(a.rightMl == b.rightMl)
+    }
+  }
+}
