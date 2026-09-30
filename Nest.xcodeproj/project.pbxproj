@@ -24,6 +24,7 @@
 		3217FE93AD615AB333C2B91C /* BackdatePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79558BAF6D22404B2CB51E9 /* BackdatePicker.swift */; };
 		360AC313C45F6A52030A9549 /* NestIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98634FC7A338576601FF335C /* NestIntents.swift */; };
 		368D3EEFAA11E01F431E40C7 /* NestIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98634FC7A338576601FF335C /* NestIntents.swift */; };
+		38853BE5DDF19C26FB61A85A /* HuckleberryImportSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4892E766D75B7D41F282F3 /* HuckleberryImportSheet.swift */; };
 		40F4D86CA0C935277FC2412A /* EventStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1683DF1598F2648F6D06844 /* EventStyle.swift */; };
 		41C2EFFC0D2B0E9BEBAD2932 /* SideEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = FBA0BDD26A76255088FBA397 /* SideEffects.swift */; };
 		43D4C026CEBC829E33568706 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE4D058ACA4F2EDF5BBD834D /* SharedStore.swift */; };
@@ -195,6 +196,7 @@
 		C6BF066360B4FB00EAFB59A2 /* PartnerPushService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PartnerPushService.swift; sourceTree = "<group>"; };
 		C79558BAF6D22404B2CB51E9 /* BackdatePicker.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BackdatePicker.swift; sourceTree = "<group>"; };
 		CC0816418353A43067CAC661 /* Nest.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Nest.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DF4892E766D75B7D41F282F3 /* HuckleberryImportSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HuckleberryImportSheet.swift; sourceTree = "<group>"; };
 		ECC3271544325FF06800D12A /* TrendsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrendsView.swift; sourceTree = "<group>"; };
 		EE4D058ACA4F2EDF5BBD834D /* SharedStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharedStore.swift; sourceTree = "<group>"; };
 		F76126193CEE235D4080DEBE /* IntentEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentEnums.swift; sourceTree = "<group>"; };
@@ -275,6 +277,7 @@
 		1947DB62A5ECAB4ACD9F64FA /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				DF4892E766D75B7D41F282F3 /* HuckleberryImportSheet.swift */,
 				534E8531C24D901C2EE66620 /* ReportRenderer.swift */,
 				BF5D23732A733E5ECF18AAFE /* SettingsView.swift */,
 			);
@@ -721,6 +724,7 @@
 				BF8331122851257B5FEB5505 /* EntryEditor.swift in Sources */,
 				A7BDF1F1865893EE5CD631F9 /* EventStyle.swift in Sources */,
 				1FAC616E61F651424979241D /* FeedAlarmService.swift in Sources */,
+				38853BE5DDF19C26FB61A85A /* HuckleberryImportSheet.swift in Sources */,
 				4AEE996F4456473072FCA8B0 /* IntentEnums.swift in Sources */,
 				11969959AC26B78FAE445AB8 /* LiveActivityService.swift in Sources */,
 				1821DD3DE2DD287CB5D350B5 /* LogSheet.swift in Sources */,

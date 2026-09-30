@@ -17,6 +17,7 @@ struct SettingsView: View {
   @State private var reportURL: URL?
   @State private var csvURL: URL?
   @State private var importing = false
+  @State private var importingHuckleberry = false
   @State private var confirmingDeleteAll = false
   @State private var isSharing = false
 
@@ -145,6 +146,7 @@ struct SettingsView: View {
           sharedRecord: record, availablePermissions: [.allowPrivate, .allowReadWrite], syncEngine: syncEngine)
       }
     }
+    .sheet(isPresented: $importingHuckleberry) { HuckleberryImportSheet() }
     .fileImporter(isPresented: $importing, allowedContentTypes: [.commaSeparatedText, .plainText]) { result in
       importCSV(result)
     }
@@ -252,11 +254,14 @@ struct SettingsView: View {
       } else {
         Button("Export raw data (CSV)", systemImage: "tablecells") { makeCSV(baby) }
       }
-      Button("Import from CSV…", systemImage: "square.and.arrow.down") { importing = true }
+      Button("Import from Huckleberry…", systemImage: "square.and.arrow.down.on.square") {
+        importingHuckleberry = true
+      }
+      Button("Import from Nest CSV…", systemImage: "square.and.arrow.down") { importing = true }
     } header: {
-      Text("Export")
+      Text("Export and import")
     } footer: {
-      Text("Import accepts Nest's own CSV format, so history from notes or another app can be brought in once. Rows already present are skipped.")
+      Text("Rows already logged at the same time are skipped, so importing twice is harmless.")
     }
     .onChange(of: reportDays) { _, _ in reportURL = nil }
   }
