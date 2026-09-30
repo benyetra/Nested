@@ -96,16 +96,32 @@ final class FeedAlarmService {
       return
     }
     let id = UUID()
+    let configuration = Self.makeConfiguration(id: id, fireAt: fireAt, baby: baby, babyName: babyName, isTest: false)
+    do {
+      try await Self.scheduleAlarm(id: id, configuration: configuration)
+      scheduledID = id
+      scheduledFireAt = fireAt
+    } catch {
+      await scheduleFallbackNotification(at: fireAt, babyName: babyName)
+    }
+  }
+
+  /// The alarm exactly as it rings for real: same title, buttons, colour and sound. The test
+  /// version differs only in what the buttons do, so trying it never logs a feed or touches the
+  /// shared alarm.
+  nonisolated private static func makeConfiguration(
+    id: UUID, fireAt: Date, baby: Baby, babyName: String, isTest: Bool
+  ) -> AlarmManager.AlarmConfiguration<FeedAlarmMetadata> {
     let stop = AlarmButton(text: "Stop", textColor: .white, systemImageName: "stop.circle")
     let secondary: AlarmButton
     let secondaryIntent: any LiveActivityIntent
     switch baby.alarmSecondary {
     case .feedingNow:
       secondary = AlarmButton(text: "Feeding now", textColor: .white, systemImageName: "heart.fill")
-      secondaryIntent = FeedingNowIntent(alarmID: id)
+      secondaryIntent = isTest ? TestAlarmButtonIntent(alarmID: id, button: "Feeding now") : FeedingNowIntent(alarmID: id)
     case .snooze:
       secondary = AlarmButton(text: "Snooze 10 min", textColor: .white, systemImageName: "zzz")
-      secondaryIntent = SnoozeFeedAlarmIntent(alarmID: id)
+      secondaryIntent = isTest ? TestAlarmButtonIntent(alarmID: id, button: "Snooze") : SnoozeFeedAlarmIntent(alarmID: id)
     }
     let alert = AlarmPresentation.Alert(
       title: "Time to feed \(babyName)",
@@ -118,19 +134,52 @@ final class FeedAlarmService {
       metadata: FeedAlarmMetadata(),
       tintColor: EventKind.nursing.color
     )
-    let configuration = AlarmManager.AlarmConfiguration<FeedAlarmMetadata>(
+    let stopIntent: any LiveActivityIntent =
+      isTest ? TestAlarmButtonIntent(alarmID: id, button: "Stop") : StopFeedAlarmIntent(alarmID: id)
+    return AlarmManager.AlarmConfiguration<FeedAlarmMetadata>(
       schedule: .fixed(fireAt),
       attributes: attributes,
-      stopIntent: StopFeedAlarmIntent(alarmID: id),
+      stopIntent: stopIntent,
       secondaryIntent: secondaryIntent
     )
+  }
+
+  // MARK: Developer test
+
+  /// Rings a real AlarmKit alarm on this phone after `seconds`, through the same code path as a
+  /// feed alarm. Returns a message for the developer screen.
+  func scheduleTestAlarm(after seconds: TimeInterval, baby: Baby, babyName: String) async -> String {
+    if authorization == .notDetermined { await requestAuthorization() }
+    authorization = manager.authorizationState
+    guard authorization == .authorized else {
+      return "Alarm permission is off, so a real alarm can't ring. Turn it on in Settings ▸ Nested, or tap Request permission."
+    }
+    let id = UUID()
+    let fireAt = Date().addingTimeInterval(seconds)
+    let configuration = Self.makeConfiguration(id: id, fireAt: fireAt, baby: baby, babyName: babyName, isTest: true)
     do {
       try await Self.scheduleAlarm(id: id, configuration: configuration)
-      scheduledID = id
-      scheduledFireAt = fireAt
+      AlarmTestLog.remember(id)
+      return "Alarm set for \(fireAt.formatted(date: .omitted, time: .standard))."
     } catch {
-      await scheduleFallbackNotification(at: fireAt, babyName: babyName)
+      return "AlarmKit refused to schedule it: \(error.localizedDescription)"
     }
+  }
+
+  /// The notification a parent gets if alarm permission is denied (it does not ring on silent).
+  func scheduleTestFallback(after seconds: TimeInterval, babyName: String) async -> String {
+    let center = UNUserNotificationCenter.current()
+    let granted = (try? await center.requestAuthorization(options: [.alert, .sound])) ?? false
+    guard granted else { return "Notifications are off for Nested, so there's nothing to show." }
+    await postFallback(identifier: "feed-alarm-test-fallback", at: Date().addingTimeInterval(seconds), babyName: babyName)
+    return "Notification set for \(Date().addingTimeInterval(seconds).formatted(date: .omitted, time: .standard)). Lock the phone and flip the silent switch to hear what it does."
+  }
+
+  /// Cancels every test alarm this screen scheduled.
+  func cancelTestAlarms() {
+    for id in AlarmTestLog.ids { try? manager.cancel(id: id) }
+    AlarmTestLog.clear()
+    UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ["feed-alarm-test-fallback"])
   }
 
   // AlarmManager isn't Sendable: its async calls run off the main actor on the shared
@@ -157,6 +206,12 @@ final class FeedAlarmService {
   /// When AlarmKit permission is denied: a time-sensitive notification, clearly labeled as
   /// not an alarm (it won't ring through silent mode).
   private func scheduleFallbackNotification(at fireAt: Date, babyName: String) async {
+    await postFallback(identifier: fallbackID, at: fireAt, babyName: babyName)
+    scheduledID = nil
+    scheduledFireAt = fireAt
+  }
+
+  private func postFallback(identifier: String, at fireAt: Date, babyName: String) async {
     let content = UNMutableNotificationContent()
     content.title = "Feed time for \(babyName)"
     content.body = "Notification only — Nested's alarm permission is off, so this won't ring on silent."
@@ -165,10 +220,8 @@ final class FeedAlarmService {
     content.categoryIdentifier = NotificationService.feedCategory
     let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute, .second], from: fireAt)
     let request = UNNotificationRequest(
-      identifier: fallbackID, content: content,
+      identifier: identifier, content: content,
       trigger: UNCalendarNotificationTrigger(dateMatching: components, repeats: false))
     try? await UNUserNotificationCenter.current().add(request)
-    scheduledID = nil
-    scheduledFireAt = fireAt
   }
 }

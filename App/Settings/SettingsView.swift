@@ -133,6 +133,17 @@ struct SettingsView: View {
       }
 
       exportSection(baby)
+      Section {
+        NavigationLink {
+          DeveloperAlarmView()
+        } label: {
+          Label("Alarm test", systemImage: "alarm.waves.left.and.right")
+        }
+      } header: {
+        Text("Developer")
+      } footer: {
+        Text("Try the feed alarm for real: its sound, volume and silent-switch behaviour.")
+      }
 
       Section {
         Button("Delete all data", role: .destructive) { confirmingDeleteAll = true }

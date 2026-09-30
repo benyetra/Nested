@@ -15,6 +15,7 @@
 		07AE9D98C54F62F8AF91244C /* NestedTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FB228B66C21738503511E59 /* NestedTimerAttributes.swift */; };
 		1E42838A51DE81667BF4DBF3 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E5C0B3CB118AFA28201C6AC /* NotificationService.swift */; };
 		21FBE741327508F75667B30E /* EventStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C333F36C3664DC977CB861 /* EventStyle.swift */; };
+		24DA720400652D8672F4284F /* DeveloperAlarmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BC844C6F96CF0493EE42379 /* DeveloperAlarmView.swift */; };
 		285AA4DCE1199A975C2F4C85 /* NestedData in Frameworks */ = {isa = PBXBuildFile; productRef = 7DFF2210B97CA97B9DC6D075 /* NestedData */; };
 		2A918D1CFC77956928334228 /* StatusProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38509F1FDE96205E90E77E92 /* StatusProvider.swift */; };
 		2AD6BB4C98E39F576D122ECC /* NestedWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = D2021320DE439586EB97AA4D /* NestedWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -50,6 +51,7 @@
 		936E5F1ABB079E2D5F52171E /* EntryEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00F45F33AE54D87F0382834B /* EntryEditor.swift */; };
 		93CAC2895ED6817F45024C44 /* IntentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5423420A102F3FFB5563EA79 /* IntentTests.swift */; };
 		955AE7BE027F291DC5983E1F /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F81D6F5EE83517A82EE9D93B /* SharedStore.swift */; };
+		95E97C255FAE14C385F847C7 /* AlarmTestIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 273871A24D508E4702499DCD /* AlarmTestIntents.swift */; };
 		9AD0D64045452F970009C290 /* EventStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C333F36C3664DC977CB861 /* EventStyle.swift */; };
 		AA5C1BD0E8575FB821DF2141 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FCBC54662473BA7C52543E6 /* OnboardingView.swift */; };
 		AABFDCEE96D217CC75581A33 /* NestedComplications.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78C2410E8E91C3B2512EEC45 /* NestedComplications.swift */; };
@@ -153,6 +155,7 @@
 		1FB228B66C21738503511E59 /* NestedTimerAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedTimerAttributes.swift; sourceTree = "<group>"; };
 		236AD01C5437FFD472A0D755 /* ReportRenderer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ReportRenderer.swift; sourceTree = "<group>"; };
 		24FA6E29A1D9C860CE81FA2F /* NestedWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedWidgetsBundle.swift; sourceTree = "<group>"; };
+		273871A24D508E4702499DCD /* AlarmTestIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmTestIntents.swift; sourceTree = "<group>"; };
 		28FE6CB74F1AD6D124406D45 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		38509F1FDE96205E90E77E92 /* StatusProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusProvider.swift; sourceTree = "<group>"; };
 		3A124C5ADDDD98E82C9570F6 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
@@ -173,6 +176,7 @@
 		777115F84D94225BC9F47957 /* AlarmCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlarmCard.swift; sourceTree = "<group>"; };
 		78C2410E8E91C3B2512EEC45 /* NestedComplications.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedComplications.swift; sourceTree = "<group>"; };
 		79F9BD97C280ED48E577A9B3 /* FeedAlarmService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FeedAlarmService.swift; sourceTree = "<group>"; };
+		7BC844C6F96CF0493EE42379 /* DeveloperAlarmView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeveloperAlarmView.swift; sourceTree = "<group>"; };
 		7CE3A5AD7028CC5A4E58B60F /* NestedWatchApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedWatchApp.swift; sourceTree = "<group>"; };
 		80823F1E0F7A9D6F32A9874C /* Nested.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Nested.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		886A53E1BB65D0D8ED6E411F /* RichTextBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextBridge.swift; sourceTree = "<group>"; };
@@ -262,6 +266,7 @@
 		14CD321AF95A7E1CC63EAAB4 /* Settings */ = {
 			isa = PBXGroup;
 			children = (
+				7BC844C6F96CF0493EE42379 /* DeveloperAlarmView.swift */,
 				EE61B880D8A0D1E9D534F427 /* HuckleberryImportSheet.swift */,
 				236AD01C5437FFD472A0D755 /* ReportRenderer.swift */,
 				28FE6CB74F1AD6D124406D45 /* SettingsView.swift */,
@@ -280,6 +285,7 @@
 		4B1647223804D665CD35E860 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				273871A24D508E4702499DCD /* AlarmTestIntents.swift */,
 				79F9BD97C280ED48E577A9B3 /* FeedAlarmService.swift */,
 				3A124C5ADDDD98E82C9570F6 /* LiveActivityService.swift */,
 				1E5C0B3CB118AFA28201C6AC /* NotificationService.swift */,
@@ -731,12 +737,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				4261AE46D4159BC09FBA3A45 /* AlarmCard.swift in Sources */,
+				95E97C255FAE14C385F847C7 /* AlarmTestIntents.swift in Sources */,
 				7279979AEB92F47A8BC0C8E0 /* AppModel.swift in Sources */,
 				71D08FD1CE0D5F171FE9618F /* AvatarCropView.swift in Sources */,
 				F48025A17886271C581743D3 /* AvatarEditor.swift in Sources */,
 				7E42D45A2D2609D87B6249BF /* AvatarModel.swift in Sources */,
 				CAB13187C770A9DC0D8D94D6 /* BackdatePicker.swift in Sources */,
 				3F84CB78DFF03B7BBC139098 /* Design.swift in Sources */,
+				24DA720400652D8672F4284F /* DeveloperAlarmView.swift in Sources */,
 				936E5F1ABB079E2D5F52171E /* EntryEditor.swift in Sources */,
 				578000FB9C0DA904D4B51645 /* EventStyle.swift in Sources */,
 				519E4A1427A5D6A7CCD0168B /* FeedAlarmService.swift in Sources */,
