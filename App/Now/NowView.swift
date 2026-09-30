@@ -372,7 +372,10 @@ extension View {
   /// Pins the log buttons under the navigation bar of a tab's screen. `tab` says which tab
   /// this is, so only the visible copy is the sheets' zoom source.
   func actionBarInset(tab: AppTab) -> some View {
-    safeAreaInset(edge: .top, spacing: 0) { ActionBar(tab: tab) }
+    // Inline titles: a large title and a pinned inset both claim the space under the status
+    // bar, and the title ends up underneath the strip.
+    navigationBarTitleDisplayMode(.inline)
+      .safeAreaInset(edge: .top, spacing: 0) { ActionBar(tab: tab) }
   }
 }
 
