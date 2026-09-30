@@ -121,6 +121,10 @@ public protocol EventStore: Sendable {
   func exportCSV() throws -> String
   @discardableResult
   func importCSV(_ text: String) throws -> Int
+  /// Adds parsed rows (from CSV or another app's export), skipping any already present
+  /// (same type and start time). Returns how many were added.
+  @discardableResult
+  func importEntries(_ rows: [EntryRow]) throws -> Int
 }
 
 extension EventStore {
@@ -853,7 +857,10 @@ public struct LiveEventStore: EventStore {
   }
 
   public func importCSV(_ text: String) throws -> Int {
-    let rows = try EntryRow.parse(csv: text)
+    try importEntries(try EntryRow.parse(csv: text))
+  }
+
+  public func importEntries(_ rows: [EntryRow]) throws -> Int {
     let stamp = now()
     let count = try database.write { db in
       let baby = try requireBaby(db)
