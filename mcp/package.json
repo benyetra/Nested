@@ -2,7 +2,7 @@
   "name": "nested-mcp",
   "version": "0.1.0",
   "private": true,
-  "description": "MCP server for Nested: turn Huckleberry exports, or text and screenshots from other trackers, into a file the Nest app imports.",
+  "description": "MCP server for Nested: turn Huckleberry exports, or text and screenshots from other trackers, into a file the Nested app imports.",
   "type": "module",
   "bin": {
     "nested-mcp": "src/index.js"

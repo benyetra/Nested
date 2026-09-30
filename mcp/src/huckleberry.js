@@ -1,7 +1,7 @@
 import { readFirstSheet, looksLikeZip } from './xlsx.js';
 import { ML_PER_OUNCE, isoUtc, parseTime } from './format.js';
 
-// Mirror of NestKit/Sources/NestCore/HuckleberryImport.swift. Keep the two in step: the same
+// Mirror of NestedKit/Sources/NestedCore/HuckleberryImport.swift. Keep the two in step: the same
 // synthetic export is tested against both.
 
 export function parseCsvText(text) {
@@ -80,7 +80,7 @@ function durationSeconds(text) {
 }
 
 /**
- * Turns a table (header + rows) from a Huckleberry export into Nest CSV rows.
+ * Turns a table (header + rows) from a Huckleberry export into Nested CSV rows.
  * Returns { rows, skipped: [{line, reason}], duplicates }.
  */
 export function parseHuckleberry(table, timeZone) {

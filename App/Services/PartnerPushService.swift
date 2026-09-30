@@ -1,12 +1,12 @@
 import Foundation
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 
 /// Calls the Cloudflare Worker (worker/src/index.js), which holds the APNs key, so a timer
-/// started on one phone appears on the other phone's Lock Screen even when Nest isn't running
+/// started on one phone appears on the other phone's Lock Screen even when Nested isn't running
 /// there, and a stopped alarm stops on both phones within seconds.
 ///
-/// Configure `NestWorkerURL` and `NestWorkerKey` in project.yml. When unset, the partner still
+/// Configure `NestedWorkerURL` and `NestedWorkerKey` in project.yml. When unset, the partner still
 /// sees running timers through sync, in widgets and in the app.
 @MainActor
 final class PartnerPushService {
@@ -17,14 +17,14 @@ final class PartnerPushService {
   private let encoder = JSONEncoder()
 
   init(bundle: Bundle = .main) {
-    let url = (bundle.object(forInfoDictionaryKey: "NestWorkerURL") as? String) ?? ""
+    let url = (bundle.object(forInfoDictionaryKey: "NestedWorkerURL") as? String) ?? ""
     endpoint = url.isEmpty ? nil : URL(string: url)
-    key = (bundle.object(forInfoDictionaryKey: "NestWorkerKey") as? String) ?? ""
+    key = (bundle.object(forInfoDictionaryKey: "NestedWorkerKey") as? String) ?? ""
   }
 
   var isConfigured: Bool { endpoint != nil && !key.isEmpty }
 
-  func handle(_ change: StoreChange, snapshot: NestSnapshot) {
+  func handle(_ change: StoreChange, snapshot: NestedSnapshot) {
     guard isConfigured else { return }
     let partners = snapshot.otherDevices
     guard !partners.isEmpty else { return }
@@ -36,7 +36,7 @@ final class PartnerPushService {
         guard let token = device.pushToStartToken else { continue }
         send([
           "type": "liveactivity", "event": "start", "token": token,
-          "attributesType": "NestTimerAttributes", "attributes": payload.attributes,
+          "attributesType": "NestedTimerAttributes", "attributes": payload.attributes,
           "contentState": payload.state,
           "alert": ["title": "\(snapshot.me) started \(entry.kind.title.lowercased())",
                     "body": entry.title(unit: snapshot.unit)],
@@ -67,10 +67,10 @@ final class PartnerPushService {
   }
 
   private func liveActivity(
-    for entry: Entry, snapshot: NestSnapshot
+    for entry: Entry, snapshot: NestedSnapshot
   ) -> (attributes: [String: Any], state: [String: Any])? {
     let now = Date()
-    let state: NestTimerAttributes.ContentState
+    let state: NestedTimerAttributes.ContentState
     switch entry {
     case .nursing(let session, let segments):
       let active = ActiveNursing(session: session, segments: segments)
@@ -90,7 +90,7 @@ final class PartnerPushService {
     default:
       return nil
     }
-    let attributes = NestTimerAttributes(entryID: entry.id, kind: entry.kind, babyName: snapshot.babyName)
+    let attributes = NestedTimerAttributes(entryID: entry.id, kind: entry.kind, babyName: snapshot.babyName)
     // Encode with ActivityKit's own JSON conventions (default JSONEncoder date strategy).
     guard
       let stateObject = try? JSONSerialization.jsonObject(with: encoder.encode(state)) as? [String: Any],

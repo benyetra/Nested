@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SQLiteData
 import SwiftUI
 
@@ -7,7 +7,7 @@ import SwiftUI
 /// buttons are pinned under the navigation bar (`actionBarInset`) on every tab.
 struct NowView: View {
   @Environment(AppModel.self) private var model
-  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
+  private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
 
   var body: some View {
     NavigationStack {
@@ -26,7 +26,7 @@ struct NowView: View {
         }
         .scrollIndicators(.hidden)
       }
-      .nestBackground()
+      .nestedBackground()
       .actionBarInset(tab: .now)
       // A real navigation bar, so content scrolls under a proper edge effect instead of
       // colliding with the status bar.
@@ -236,7 +236,7 @@ struct NextFeedCard: View {
               .opacity(0.85)
           }
         } else {
-          Text("Log a few feeds and Nest will learn her rhythm.")
+          Text("Log a few feeds and Nested will learn her rhythm.")
             .font(.headline)
           Text("Predictions come from her own last 3 days, never a generic chart.")
             .font(.footnote)
@@ -428,7 +428,7 @@ struct ActionBar: View {
   @Environment(\.sheetNamespace) private var namespace
   let tab: AppTab
 
-  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
+  private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
   private let kinds: [EventKind] = [.bottle, .nursing, .diaper, .sleep, .pump]
 
   var body: some View {

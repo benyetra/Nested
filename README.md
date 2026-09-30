@@ -1,31 +1,31 @@
-# Nest — Newborn Tracker
+# Nested — Newborn Tracker
 
-A private, two-parent iOS app that logs every feed, diaper, nap and pump in under 3 seconds, syncs between both parents' phones through iCloud, and turns the history into predictions and trends. It's built from the *Newborn Tracker PRD*. (Repository: Nested; the app is called Nest.)
+A private, two-parent iOS app that logs every feed, diaper, nap and pump in under 3 seconds, syncs between both parents' phones through iCloud, and turns the history into predictions and trends. It's built from the *Newborn Tracker PRD*. (Repository: Nested; the app is called Nested.)
 
 ## Layout
 
 | Path | What |
 | --- | --- |
-| `NestKit/Sources/NestCore` | Pure logic with no Apple-only frameworks: units, predictions, gentle flags, alarm rules, daily stats, CSV |
-| `NestKit/Sources/NestData` | SQLiteData schema, migrations, `EventStore` (all writes), snapshot (all reads), CloudKit sync setup |
+| `NestedKit/Sources/NestedCore` | Pure logic with no Apple-only frameworks: units, predictions, gentle flags, alarm rules, daily stats, CSV |
+| `NestedKit/Sources/NestedData` | SQLiteData schema, migrations, `EventStore` (all writes), snapshot (all reads), CloudKit sync setup |
 | `App/` | SwiftUI app: Now, Timeline, Trends, Settings, log sheets, and services (AlarmKit, ActivityKit, notifications, Worker push, Foundation Models summary, PDF report) |
 | `Shared/` | Compiled into the app, widgets and watch: App Intents catalog, Live Activity attributes, process-wide store, widget timeline provider |
 | `Widgets/` | Lock Screen and Home Screen widgets, Control Center controls, Live Activity / Dynamic Island |
 | `Watch/`, `WatchWidgets/` | Apple Watch app and complications |
 | `Tests/` | Swift Testing tests for every App Intent (hosted in the app) |
 | `worker/` | Cloudflare Worker that sends APNs Live Activity and background pushes to the partner's phone |
-| `mcp/` | MCP server that turns Huckleberry exports, or text and screenshots from other trackers (Nanit…), into a file Nest imports |
+| `mcp/` | MCP server that turns Huckleberry exports, or text and screenshots from other trackers (Nanit…), into a file Nested imports |
 | `project.yml` | XcodeGen spec (source of truth for targets, entitlements and capabilities) |
 
 ## Build
 
 ```sh
-open Nest.xcodeproj
+open Nested.xcodeproj
 ```
 
-`Nest.xcodeproj` is committed, so you can just open it and keep your Xcode signing changes. You only need XcodeGen when you add or remove files or targets, or change `project.yml`: `brew install xcodegen && xcodegen generate`. Entitlements and capabilities live in `project.yml`, so regenerating keeps them; edit them there, not in Xcode's Signing & Capabilities tab, or a later regenerate will overwrite your change. (New Swift files inside existing folders need no regenerate if you add them from Xcode.)
+`Nested.xcodeproj` is committed, so you can just open it and keep your Xcode signing changes. You only need XcodeGen when you add or remove files or targets, or change `project.yml`: `brew install xcodegen && xcodegen generate`. Entitlements and capabilities live in `project.yml`, so regenerating keeps them; edit them there, not in Xcode's Signing & Capabilities tab, or a later regenerate will overwrite your change. (New Swift files inside existing folders need no regenerate if you add them from Xcode.)
 
-To run the logic tests without Xcode: `cd NestKit && swift test`. They also run on Linux; install `libsqlite3-dev` first.
+To run the logic tests without Xcode: `cd NestedKit && swift test`. They also run on Linux; install `libsqlite3-dev` first.
 
 ## One-time Apple setup
 
@@ -41,14 +41,14 @@ Use the Apple Developer account for team `87A6J7UY87`.
    - Enable these for the targets that use them (see the `*.entitlements` files): App Groups, iCloud (CloudKit), Push Notifications, and Time Sensitive Notifications.
 2. **CloudKit schema.** Run a development build once on a device so that SQLiteData creates the record types. Then use **Deploy Schema Changes to Production** in the CloudKit Console before TestFlight.
 3. **Sharing.** Bennett creates the baby, then goes to Settings → Share with your partner and sends the invite in Messages. Yvette opens the link once.
-4. **Worker** (optional, Phase 2). This lets a timer started on one phone appear on the other phone's Lock Screen even when Nest isn't running there. It also stops the partner's alarm within seconds. Setup is in `worker/README.md`. Then set `NEST_WORKER_URL` and `NEST_WORKER_KEY` in `project.yml`, or in Xcode Cloud environment variables.
+4. **Worker** (optional, Phase 2). This lets a timer started on one phone appear on the other phone's Lock Screen even when Nested isn't running there. It also stops the partner's alarm within seconds. Setup is in `worker/README.md`. Then set `NEST_WORKER_URL` and `NEST_WORKER_KEY` in `project.yml`, or in Xcode Cloud environment variables.
 
 ## How the PRD maps to code
 
-- **Log in one gesture.** Every action is an App Intent in `Shared/Intents/NestIntents.swift`. The same intents are used by:
+- **Log in one gesture.** Every action is an App Intent in `Shared/Intents/NestedIntents.swift`. The same intents are used by:
   - Home Screen widget buttons
   - Control Center / Lock Screen controls
-  - Siri phrases (`App/Intents/NestShortcuts.swift`)
+  - Siri phrases (`App/Intents/NestedShortcuts.swift`)
   - Live Activity buttons
   - AlarmKit buttons
   - the Shortcuts app
@@ -66,7 +66,7 @@ Use the Apple Developer account for team `87A6J7UY87`.
   - Feeds auto-arm the single `feedAlarms` row, which is keyed by baby, so there's only ever one alarm (`EventStore.autoArm`).
   - Each phone schedules its own AlarmKit alarm from that row (`FeedAlarmService`) and reports its armed state for the bedtime confirmation.
   - Stop, Feeding now and Snooze update the shared row, and the partner's phone follows.
-- **Predictions and flags.** `NestCore/Predictions.swift` and `HealthFlags.swift` are covered by fixture tests: regular pattern, cluster feeding, growth spurt, missing data.
+- **Predictions and flags.** `NestedCore/Predictions.swift` and `HealthFlags.swift` are covered by fixture tests: regular pattern, cluster feeding, growth spurt, missing data.
 
 ## Deviations and known limits
 

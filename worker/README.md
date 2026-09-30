@@ -1,4 +1,4 @@
-# Nest push Worker
+# Nested push Worker
 
 This is the only server piece, and it runs on the Cloudflare Workers free plan. The app calls `POST /push` in three cases:
 

@@ -1,4 +1,4 @@
-name: Nest
+name: Nested
 options:
   bundleIdPrefix: com.yetra
   deploymentTarget:
@@ -23,11 +23,11 @@ settings:
     NEST_WORKER_KEY: ""
 
 packages:
-  NestKit:
-    path: NestKit
+  NestedKit:
+    path: NestedKit
 
 targets:
-  Nest:
+  Nested:
     type: application
     platform: iOS
     attributes:
@@ -42,17 +42,17 @@ targets:
       - path: App
       - path: Shared
     dependencies:
-      - package: NestKit
-        product: NestCore
-      - package: NestKit
-        product: NestData
-      - target: NestWidgets
-      - target: NestWatch
+      - package: NestedKit
+        product: NestedCore
+      - package: NestedKit
+        product: NestedData
+      - target: NestedWidgets
+      - target: NestedWatch
         copy:
           destination: productsDirectory
           subpath: $(CONTENTS_FOLDER_PATH)/Watch
     entitlements:
-      path: App/Nest.entitlements
+      path: App/Nested.entitlements
       properties:
         aps-environment: development
         com.apple.developer.usernotifications.time-sensitive: true
@@ -69,10 +69,10 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
     scheme:
       testTargets:
-        - NestTests
+        - NestedTests
       gatherCoverageData: false
 
-  NestWidgets:
+  NestedWidgets:
     type: app-extension
     platform: iOS
     attributes:
@@ -85,12 +85,12 @@ targets:
       - path: Widgets
       - path: Shared
     dependencies:
-      - package: NestKit
-        product: NestCore
-      - package: NestKit
-        product: NestData
+      - package: NestedKit
+        product: NestedCore
+      - package: NestedKit
+        product: NestedData
     entitlements:
-      path: Widgets/NestWidgets.entitlements
+      path: Widgets/NestedWidgets.entitlements
       properties:
         com.apple.developer.icloud-container-identifiers: [iCloud.com.yetra.nest]
         com.apple.developer.icloud-services: [CloudKit]
@@ -103,7 +103,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "1"
         SKIP_INSTALL: YES
 
-  NestWatch:
+  NestedWatch:
     type: application
     platform: watchOS
     attributes:
@@ -118,13 +118,13 @@ targets:
       - path: Shared/SharedStore.swift
       - path: Shared/Intents
     dependencies:
-      - package: NestKit
-        product: NestCore
-      - package: NestKit
-        product: NestData
-      - target: NestWatchWidgets
+      - package: NestedKit
+        product: NestedCore
+      - package: NestedKit
+        product: NestedData
+      - target: NestedWatchWidgets
     entitlements:
-      path: Watch/NestWatch.entitlements
+      path: Watch/NestedWatch.entitlements
       properties:
         aps-environment: development
         com.apple.developer.icloud-container-identifiers: [iCloud.com.yetra.nest]
@@ -138,7 +138,7 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         SKIP_INSTALL: YES
 
-  NestWatchWidgets:
+  NestedWatchWidgets:
     type: app-extension
     platform: watchOS
     attributes:
@@ -153,12 +153,12 @@ targets:
       - path: Shared/SharedStore.swift
       - path: Shared/Widgets
     dependencies:
-      - package: NestKit
-        product: NestCore
-      - package: NestKit
-        product: NestData
+      - package: NestedKit
+        product: NestedCore
+      - package: NestedKit
+        product: NestedData
     entitlements:
-      path: WatchWidgets/NestWatchWidgets.entitlements
+      path: WatchWidgets/NestedWatchWidgets.entitlements
       properties:
         com.apple.developer.icloud-container-identifiers: [iCloud.com.yetra.nest]
         com.apple.developer.icloud-services: [CloudKit]
@@ -170,17 +170,17 @@ targets:
         GENERATE_INFOPLIST_FILE: NO
         SKIP_INSTALL: YES
 
-  NestTests:
+  NestedTests:
     type: bundle.unit-test
     platform: iOS
     sources:
       - path: Tests
     dependencies:
-      # NestKit modules come in through the host app (linked once, so there's a single
+      # NestedKit modules come in through the host app (linked once, so there's a single
       # copy of shared state such as the configured store).
-      - target: Nest
+      - target: Nested
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
-        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Nest.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Nest
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Nested.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Nested
         BUNDLE_LOADER: $(TEST_HOST)

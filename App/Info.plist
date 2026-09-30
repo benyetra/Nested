@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Nest</string>
+	<string>Nested</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -27,7 +27,7 @@
 			<string>com.yetra.nest</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>nest</string>
+				<string>nested</string>
 			</array>
 		</dict>
 	</array>
@@ -38,12 +38,12 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAlarmKitUsageDescription</key>
-	<string>Nest sets a feed alarm on both phones after night feeds, so it rings even on silent and in Sleep Focus.</string>
+	<string>Nested sets a feed alarm on both phones after night feeds, so it rings even on silent and in Sleep Focus.</string>
 	<key>NSSupportsLiveActivities</key>
 	<true/>
-	<key>NestWorkerKey</key>
+	<key>NestedWorkerKey</key>
 	<string>$(NEST_WORKER_KEY)</string>
-	<key>NestWorkerURL</key>
+	<key>NestedWorkerURL</key>
 	<string>$(NEST_WORKER_URL)</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>

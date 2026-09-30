@@ -1,6 +1,6 @@
 import AppIntents
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 import WidgetKit
 

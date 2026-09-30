@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 enum AppTab: Hashable {
@@ -61,10 +61,10 @@ final class AppModel {
   }
 
   func handle(url: URL) {
-    if let kind = NestLink.kind(from: url) {
+    if let kind = NestedLink.kind(from: url) {
       tab = .now
       open(kind)
-    } else if url == NestLink.trends {
+    } else if url == NestedLink.trends {
       tab = .trends
     } else {
       tab = .now
@@ -137,18 +137,18 @@ final class AppModel {
 
   func showToast(_ message: String, undo: (@MainActor () -> Void)? = nil) {
     toastTask?.cancel()
-    withNestAnimation(Motion.standard) { toast = Toast(message: message, undo: undo) }
+    withNestedAnimation(Motion.standard) { toast = Toast(message: message, undo: undo) }
     toastTask = Task { [weak self] in
       try? await Task.sleep(for: .seconds(5))
       guard !Task.isCancelled else { return }
-      withNestAnimation(Motion.standard) { self?.toast = nil }
+      withNestedAnimation(Motion.standard) { self?.toast = nil }
     }
   }
 
   func undoToast() {
     toast?.undo?()
     selectionTick += 1
-    withNestAnimation(Motion.standard) { toast = nil }
+    withNestedAnimation(Motion.standard) { toast = nil }
   }
 
   func delete(_ entry: Entry, unit: VolumeUnit) {

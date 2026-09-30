@@ -1,5 +1,5 @@
 import Foundation
-import NestCore
+import NestedCore
 
 #if canImport(FoundationModels)
   import FoundationModels

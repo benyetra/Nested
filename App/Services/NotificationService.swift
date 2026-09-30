@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 import UserNotifications
 
@@ -45,12 +45,12 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     _ = try? await center.requestAuthorization(options: [.alert, .sound, .badge])
   }
 
-  func reconcile(_ snapshot: NestSnapshot) {
+  func reconcile(_ snapshot: NestedSnapshot) {
     scheduleFeedReminder(snapshot)
     postFlags(snapshot)
   }
 
-  private func scheduleFeedReminder(_ snapshot: NestSnapshot) {
+  private func scheduleFeedReminder(_ snapshot: NestedSnapshot) {
     center.removePendingNotificationRequests(withIdentifiers: [reminderID])
     guard feedRemindersEnabled, let prediction = snapshot.feedPrediction, snapshot.activeNursing == nil
     else { return }
@@ -65,7 +65,7 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     center.add(UNNotificationRequest(identifier: reminderID, content: content, trigger: trigger))
   }
 
-  private func postFlags(_ snapshot: NestSnapshot) {
+  private func postFlags(_ snapshot: NestedSnapshot) {
     guard let baby = snapshot.baby, baby.flagNotifications else { return }
     let now = Date()
     let day = now.formatted(.iso8601.year().month().day())

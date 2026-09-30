@@ -1,4 +1,4 @@
-import NestCore
+import NestedCore
 import SwiftUI
 
 /// Converts between the stored `RichText` and the `AttributedString` the editor works on.

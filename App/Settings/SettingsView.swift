@@ -1,13 +1,13 @@
 import CloudKit
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SQLiteData
 import SwiftUI
 import UniformTypeIdentifiers
 
 struct SettingsView: View {
   @Environment(AppModel.self) private var model
-  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
+  private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
 
   @AppStorage(NotificationService.feedReminderKey) private var feedReminders = false
   @State private var nightMode = DevicePrefs.nightMode
@@ -25,7 +25,7 @@ struct SettingsView: View {
     NavigationStack {
       if let baby = snapshot.baby {
         form(baby)
-          .nestListBackground()
+          .nestedListBackground()
           .actionBarInset(tab: .settings)
           .navigationTitle("Settings")
       } else {
@@ -37,9 +37,9 @@ struct SettingsView: View {
 
   private func form(_ baby: Baby) -> some View {
     Form {
-      if !NestBootstrap.problems.isEmpty {
+      if !NestedBootstrap.problems.isEmpty {
         Section("Setup needed") {
-          ForEach(NestBootstrap.problems, id: \.self) { problem in
+          ForEach(NestedBootstrap.problems, id: \.self) { problem in
             Label(problem, systemImage: "exclamationmark.triangle.fill")
               .font(.footnote)
               .foregroundStyle(.orange)
@@ -137,11 +137,11 @@ struct SettingsView: View {
       Section {
         Button("Delete all data", role: .destructive) { confirmingDeleteAll = true }
       } footer: {
-        Text("Nest \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
+        Text("Nested \(Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "")")
       }
     }
     .sheet(item: $sharedRecord) { record in
-      if let syncEngine = NestBootstrap.syncEngine {
+      if let syncEngine = NestedBootstrap.syncEngine {
         CloudSharingView(
           sharedRecord: record, availablePermissions: [.allowPrivate, .allowReadWrite], syncEngine: syncEngine)
       }
@@ -194,7 +194,7 @@ struct SettingsView: View {
         ForEach(AlarmSecondaryButton.allCases, id: \.self) { Text($0.title).tag($0) }
       }
       if FeedAlarmService.shared.authorization != .authorized {
-        Button("Allow Nest to set alarms") {
+        Button("Allow Nested to set alarms") {
           Task {
             await FeedAlarmService.shared.requestAuthorization()
             SideEffects.shared.refresh()
@@ -257,7 +257,7 @@ struct SettingsView: View {
       Button("Import from Huckleberry…", systemImage: "square.and.arrow.down.on.square") {
         importingHuckleberry = true
       }
-      Button("Import from Nest CSV…", systemImage: "square.and.arrow.down") { importing = true }
+      Button("Import from Nested CSV…", systemImage: "square.and.arrow.down") { importing = true }
     } header: {
       Text("Export and import")
     } footer: {
@@ -285,7 +285,7 @@ struct SettingsView: View {
     do {
       let csv = try model.store.exportCSV()
       let url = FileManager.default.temporaryDirectory
-        .appendingPathComponent("\(baby.name.isEmpty ? "Nest" : baby.name) data \(Date().formatted(.iso8601.year().month().day())).csv")
+        .appendingPathComponent("\(baby.name.isEmpty ? "Nested" : baby.name) data \(Date().formatted(.iso8601.year().month().day())).csv")
       try csv.write(to: url, atomically: true, encoding: .utf8)
       csvURL = url
     } catch {
@@ -313,9 +313,9 @@ struct SettingsView: View {
     Task {
       defer { isSharing = false }
       do {
-        let title = "Join \(baby.name.isEmpty ? "our baby" : baby.name) in Nest"
-        guard let syncEngine = NestBootstrap.syncEngine else {
-          model.errorMessage = NestBootstrap.problems.last ?? "iCloud sync isn't set up on this device."
+        let title = "Join \(baby.name.isEmpty ? "our baby" : baby.name) in Nested"
+        guard let syncEngine = NestedBootstrap.syncEngine else {
+          model.errorMessage = NestedBootstrap.problems.last ?? "iCloud sync isn't set up on this device."
           return
         }
         sharedRecord = try await syncEngine.share(record: baby) { share in

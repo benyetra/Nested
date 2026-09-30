@@ -1,11 +1,11 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SQLiteData
 import SwiftUI
 
 struct RootView: View {
   @Environment(AppModel.self) private var model
-  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
+  private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
   @State private var now = Date()
   @Namespace private var sheetSource
 
@@ -45,7 +45,7 @@ struct RootView: View {
     // Haptic, visual and state change on the same frame.
     .task {
       // Explain setup problems (e.g. a missing capability) instead of crashing at launch.
-      if let problem = NestBootstrap.problems.first, model.errorMessage == nil {
+      if let problem = NestedBootstrap.problems.first, model.errorMessage == nil {
         model.errorMessage = problem
       }
     }

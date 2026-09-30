@@ -1,11 +1,11 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 import WidgetKit
 
 struct StatusEntry: TimelineEntry {
   let date: Date
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 }
 
 /// Reads the shared snapshot. Time-based text in the views renders live with
@@ -47,7 +47,7 @@ struct StatusProvider: TimelineProvider {
 
 /// Ring filling toward the predicted next feed.
 struct FeedRingView: View {
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   var body: some View {
     if let last = snapshot.lastFeed?.startedAt, let expected = snapshot.feedPrediction?.expected, expected > last {
@@ -69,7 +69,7 @@ struct FeedRingView: View {
 }
 
 struct StatusRectangularView: View {
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   var body: some View {
     VStack(alignment: .leading, spacing: 1) {
@@ -107,7 +107,7 @@ struct StatusRectangularView: View {
 }
 
 struct StatusInlineView: View {
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   var body: some View {
     if let feed = snapshot.lastFeed {
@@ -117,7 +117,7 @@ struct StatusInlineView: View {
       }()
       Text("Fed \(Text(feed.startedAt, style: .relative)) ago\(side)")
     } else {
-      Text("Nest: no feeds yet")
+      Text("Nested: no feeds yet")
     }
   }
 }

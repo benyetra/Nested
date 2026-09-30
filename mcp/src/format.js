@@ -1,4 +1,4 @@
-// Nest's CSV import format (see NestKit/Sources/NestCore/CSV.swift `EntryRow`). The app's
+// Nested's CSV import format (see NestedKit/Sources/NestedCore/CSV.swift `EntryRow`). The app's
 // importer skips anything already logged at the same time, so re-importing is harmless.
 
 export const HEADER = [

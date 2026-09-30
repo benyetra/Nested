@@ -27,7 +27,7 @@ struct BackdatePicker: View {
             }
           }
           Chip(title: showsWheel ? "Done" : "Other…", systemImage: "clock", isSelected: showsWheel, tint: tint) {
-            withNestAnimation(Motion.standard) { showsWheel.toggle() }
+            withNestedAnimation(Motion.standard) { showsWheel.toggle() }
           }
         }
       }

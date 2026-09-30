@@ -1,7 +1,7 @@
 import AlarmKit
 import AppIntents
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 import UserNotifications
 
@@ -54,7 +54,7 @@ final class FeedAlarmService {
   }
 
   /// Reschedules the local alarm whenever the shared row changes.
-  func reconcile(_ snapshot: NestSnapshot, store: any EventStore) async {
+  func reconcile(_ snapshot: NestedSnapshot, store: any EventStore) async {
     authorization = manager.authorizationState
     let now = Date()
     let desired: Date? = {
@@ -159,7 +159,7 @@ final class FeedAlarmService {
   private func scheduleFallbackNotification(at fireAt: Date, babyName: String) async {
     let content = UNMutableNotificationContent()
     content.title = "Feed time for \(babyName)"
-    content.body = "Notification only — Nest's alarm permission is off, so this won't ring on silent."
+    content.body = "Notification only — Nested's alarm permission is off, so this won't ring on silent."
     content.sound = .default
     content.interruptionLevel = .timeSensitive
     content.categoryIdentifier = NotificationService.feedCategory

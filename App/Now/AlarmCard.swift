@@ -1,12 +1,12 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 /// Bedtime confirmation for the night feed alarm, plus the "Wake us in…" chips.
 struct AlarmCard: View {
   @Environment(AppModel.self) private var model
   @Environment(\.openURL) private var openURL
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
   let now: Date
 
   private var alarmService: FeedAlarmService { .shared }

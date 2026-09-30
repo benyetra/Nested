@@ -22,11 +22,11 @@ export function createServer() {
     {
       title: 'Import a Huckleberry export',
       description:
-        "Reads a Huckleberry data export (.csv or Excel .xlsx, from Child ▸ Reports ▸ Export tracking data as CSV) and writes a Nest import file with feeds, bottles, diapers, sleep and pumping. Repeated rows are collapsed. Set dryRun to preview counts without writing.",
+        "Reads a Huckleberry data export (.csv or Excel .xlsx, from Child ▸ Reports ▸ Export tracking data as CSV) and writes a Nested import file with feeds, bottles, diapers, sleep and pumping. Repeated rows are collapsed. Set dryRun to preview counts without writing.",
       inputSchema: {
         path: z.string().describe('Path to the exported file on this computer.'),
         timezone: z.string().optional().describe("The baby's IANA timezone (e.g. America/New_York). Defaults to this computer's."),
-        outputDir: z.string().optional().describe('Folder for the Nest import file. Defaults to iCloud Drive/Nested Imports.'),
+        outputDir: z.string().optional().describe('Folder for the Nested import file. Defaults to iCloud Drive/Nested Imports.'),
         dryRun: z.boolean().optional(),
       },
       annotations: { readOnlyHint: false, idempotentHint: true, openWorldHint: false },
@@ -45,7 +45,7 @@ export function createServer() {
     {
       title: 'Import events read from text or screenshots',
       description:
-        "Turns entries you read from text or screenshots (Nanit sleep summaries, another tracker, a paper log) into a Nest import file. Call describe_import first if unsure how to read a source. Use dryRun=true first and show the person what you read, especially dates and times, then call again without dryRun to write the file.",
+        "Turns entries you read from text or screenshots (Nanit sleep summaries, another tracker, a paper log) into a Nested import file. Call describe_import first if unsure how to read a source. Use dryRun=true first and show the person what you read, especially dates and times, then call again without dryRun to write the file.",
       inputSchema: {
         events: z.array(EventSchema).min(1).max(1000),
         timezone: z.string().optional().describe("The baby's IANA timezone. Defaults to this computer's."),
@@ -67,7 +67,7 @@ export function createServer() {
   server.registerTool(
     'describe_import',
     {
-      title: 'How importing into Nest works',
+      title: 'How importing into Nested works',
       description:
         'Explains the import sources, how to read Nanit and other screenshots into events, the event fields, and how the file gets into the app. Call this before importing from screenshots or text.',
       inputSchema: {},

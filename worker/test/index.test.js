@@ -9,7 +9,7 @@ test("start payload carries attributes, content state and alert", () => {
   const push = buildPush(
     {
       type: "liveactivity", event: "start", token,
-      attributesType: "NestTimerAttributes",
+      attributesType: "NestedTimerAttributes",
       attributes: { entryID: "x", kind: "nursing", babyName: "Maddie" },
       contentState: { side: "left" },
       alert: { title: "Yvette started nursing", body: "Nursing now" },
@@ -18,7 +18,7 @@ test("start payload carries attributes, content state and alert", () => {
   assert.equal(push.headers["apns-push-type"], "liveactivity");
   assert.equal(push.headers["apns-topic"], "com.yetra.nest.push-type.liveactivity");
   assert.equal(push.payload.aps.event, "start");
-  assert.equal(push.payload.aps["attributes-type"], "NestTimerAttributes");
+  assert.equal(push.payload.aps["attributes-type"], "NestedTimerAttributes");
   assert.deepEqual(push.payload.aps["content-state"], { side: "left" });
   assert.equal(push.payload.aps.timestamp, 1000);
 });

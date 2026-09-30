@@ -1,5 +1,5 @@
 import AppIntents
-import NestCore
+import NestedCore
 
 // App Intents parameter types. Display representations must be literal so the App Intents
 // metadata processor can read them at build time.

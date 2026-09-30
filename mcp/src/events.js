@@ -3,7 +3,7 @@ import { ML_PER_OUNCE, isoUtc, parseTime } from './format.js';
 
 // Structured events, for data a person pastes as text or screenshots (Nanit, a paper log,
 // another tracker). The model reads the text or image and fills these in; this module checks
-// them and turns them into Nest CSV rows.
+// them and turns them into Nested CSV rows.
 
 const time = z
   .string()

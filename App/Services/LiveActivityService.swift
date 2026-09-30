@@ -1,6 +1,6 @@
 import ActivityKit
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 /// Mirrors running timers as Live Activities on this phone, and publishes this phone's
@@ -16,11 +16,11 @@ final class LiveActivityService {
   private var observers: [Task<Void, Never>] = []
   private var observedActivityIDs: Set<String> = []
 
-  func reconcile(_ snapshot: NestSnapshot) {
+  func reconcile(_ snapshot: NestedSnapshot) {
     guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
-    let desired = NestTimerAttributes.running(in: snapshot)
+    let desired = NestedTimerAttributes.running(in: snapshot)
     let desiredIDs = Set(desired.map(\.0.entryID))
-    let activities = Activity<NestTimerAttributes>.activities
+    let activities = Activity<NestedTimerAttributes>.activities
 
     for activity in activities where !desiredIDs.contains(activity.attributes.entryID) {
       signatures[activity.attributes.entryID] = nil
@@ -29,7 +29,7 @@ final class LiveActivityService {
     }
 
     for (attributes, state) in desired {
-      let signature = NestTimerAttributes.eventSignature(state)
+      let signature = NestedTimerAttributes.eventSignature(state)
       if let existing = activities.first(where: { $0.attributes.entryID == attributes.entryID }) {
         guard signatures[attributes.entryID] != signature else { continue }
         signatures[attributes.entryID] = signature
@@ -44,13 +44,13 @@ final class LiveActivityService {
   }
 
   nonisolated private static func end(activityID: String) async {
-    for activity in Activity<NestTimerAttributes>.activities where activity.id == activityID {
+    for activity in Activity<NestedTimerAttributes>.activities where activity.id == activityID {
       await activity.end(nil, dismissalPolicy: .immediate)
     }
   }
 
-  nonisolated private static func update(activityID: String, state: NestTimerAttributes.ContentState) async {
-    for activity in Activity<NestTimerAttributes>.activities where activity.id == activityID {
+  nonisolated private static func update(activityID: String, state: NestedTimerAttributes.ContentState) async {
+    for activity in Activity<NestedTimerAttributes>.activities where activity.id == activityID {
       await activity.update(ActivityContent(state: state, staleDate: nil, relevanceScore: 100))
     }
   }
@@ -60,19 +60,19 @@ final class LiveActivityService {
     guard observers.isEmpty else { return }
     observers.append(
       Task.detached {
-        for await data in Activity<NestTimerAttributes>.pushToStartTokenUpdates {
+        for await data in Activity<NestedTimerAttributes>.pushToStartTokenUpdates {
           let token = data.hexString
           try? store.updateDevice { $0.pushToStartToken = token }
         }
       })
     observers.append(
       Task.detached {
-        for await activity in Activity<NestTimerAttributes>.activityUpdates {
+        for await activity in Activity<NestedTimerAttributes>.activityUpdates {
           let id = activity.id
           await LiveActivityService.shared.observeToken(activityID: id, store: store)
         }
       })
-    for activity in Activity<NestTimerAttributes>.activities {
+    for activity in Activity<NestedTimerAttributes>.activities {
       observeToken(activityID: activity.id, store: store)
     }
   }
@@ -83,7 +83,7 @@ final class LiveActivityService {
   }
 
   nonisolated private static func forwardTokens(activityID: String, store: any EventStore) async {
-    guard let activity = Activity<NestTimerAttributes>.activities.first(where: { $0.id == activityID }) else {
+    guard let activity = Activity<NestedTimerAttributes>.activities.first(where: { $0.id == activityID }) else {
       return
     }
     let entryID = activity.attributes.entryID

@@ -1,11 +1,11 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 /// Routes to the right sheet. Sheets use detents and present from the tapped button.
 struct LogSheet: View {
   let kind: EventKind
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
   // Open tall so the fields never sit behind the log button; drag down for the half sheet.
   @State private var detent: PresentationDetent = .large
 
@@ -76,7 +76,7 @@ struct AmountControl: View {
               isSelected: abs(amount - ml) < 1,
               tint: tint
             ) {
-              withNestAnimation(Motion.standard) { ml = amount }
+              withNestedAnimation(Motion.standard) { ml = amount }
             }
           }
         }
@@ -99,7 +99,7 @@ struct AmountControl: View {
 
   private func adjust(_ steps: Double) {
     let stepMl = Volume.ml(from: Volume.step(for: unit), unit: unit)
-    withNestAnimation(Motion.standard) {
+    withNestedAnimation(Motion.standard) {
       ml = max(0, Volume.roundedMl(ml + steps * stepMl, unit: unit))
     }
   }
@@ -110,7 +110,7 @@ struct AmountControl: View {
 struct BottleSheet: View {
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   @State private var ml: Double
   @State private var contents: BottleContents
@@ -121,7 +121,7 @@ struct BottleSheet: View {
   @State private var brand: String
   @State private var note = ""
 
-  init(snapshot: NestSnapshot) {
+  init(snapshot: NestedSnapshot) {
     self.snapshot = snapshot
     let amount = snapshot.defaultBottleMl ?? Volume.roundedMl(90, unit: snapshot.unit)
     _ml = State(initialValue: amount)
@@ -192,7 +192,7 @@ struct BottleSheet: View {
 struct NursingSheet: View {
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   @State private var startSide: Side
   @State private var date = Date()
@@ -202,7 +202,7 @@ struct NursingSheet: View {
   @State private var endedOn: Side = .right
   @State private var latchNote = ""
 
-  init(snapshot: NestSnapshot) {
+  init(snapshot: NestedSnapshot) {
     self.snapshot = snapshot
     _startSide = State(initialValue: snapshot.nextSide)
     _endedOn = State(initialValue: snapshot.nextSide)
@@ -301,7 +301,7 @@ struct SideSelector: View {
     }
     .padding(6)
     .background(RoundedRectangle(cornerRadius: 22, style: .continuous).fill(tint.opacity(0.12)))
-    .nestAnimation(Motion.sideSwitch, value: side)
+    .nestedAnimation(Motion.sideSwitch, value: side)
     .sensoryFeedback(.selection, trigger: side)
   }
 }
@@ -310,7 +310,7 @@ struct RunningNursingView: View {
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
   let active: ActiveNursing
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
   @Binding var latchNote: String
 
   var body: some View {
@@ -335,7 +335,7 @@ struct RunningNursingView: View {
             sideColumn(.left, seconds: left)
             sideColumn(.right, seconds: right)
           }
-          .nestAnimation(Motion.sideSwitch, value: active.currentSide)
+          .nestedAnimation(Motion.sideSwitch, value: active.currentSide)
 
           HStack(spacing: 12) {
             Button {
@@ -411,7 +411,7 @@ struct RunningNursingView: View {
 struct PumpSheet: View {
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   @State private var leftMl = 60.0
   @State private var rightMl = 60.0
@@ -491,7 +491,7 @@ struct PumpSheet: View {
 struct DiaperSheet: View {
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   @State private var kind: DiaperKind?
   @State private var color: StoolColor?
@@ -538,7 +538,7 @@ struct DiaperSheet: View {
           .textFieldStyle(.roundedBorder)
       }
       .padding()
-      .nestAnimation(value: kind)
+      .nestedAnimation(value: kind)
     }
     .safeAreaInset(edge: .bottom) {
       if let kind, kind.hasStool {
@@ -642,7 +642,7 @@ struct FlowChips<Option: Hashable>: View {
 struct SleepSheet: View {
   @Environment(AppModel.self) private var model
   @Environment(\.dismiss) private var dismiss
-  let snapshot: NestSnapshot
+  let snapshot: NestedSnapshot
 
   @State private var location: SleepLocation?
   @State private var date = Date()

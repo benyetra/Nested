@@ -1,6 +1,6 @@
 import Combine
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SQLiteData
 import SwiftUI
 import WidgetKit
@@ -17,12 +17,12 @@ import WidgetKit
 final class SideEffects {
   static let shared = SideEffects()
 
-  @ObservationIgnored @Fetch(SnapshotRequest(), animation: Motion.standard) private var fetched = NestSnapshot.empty
+  @ObservationIgnored @Fetch(SnapshotRequest(), animation: Motion.standard) private var fetched = NestedSnapshot.empty
   @ObservationIgnored private var cancellable: AnyCancellable?
   @ObservationIgnored private var store: (any EventStore)?
-  @ObservationIgnored private(set) var latest = NestSnapshot.empty
+  @ObservationIgnored private(set) var latest = NestedSnapshot.empty
 
-  var snapshot: NestSnapshot { fetched }
+  var snapshot: NestedSnapshot { fetched }
 
   func start(store: any EventStore) {
     self.store = store
@@ -39,7 +39,7 @@ final class SideEffects {
 
   /// Runs on the database's thread, so it must not be main-actor isolated (a closure written
   /// inline here would inherit that isolation and trap at runtime).
-  nonisolated private static func isSameContent(_ old: NestSnapshot, _ new: NestSnapshot) -> Bool {
+  nonisolated private static func isSameContent(_ old: NestedSnapshot, _ new: NestedSnapshot) -> Bool {
     var old = old
     old.generatedAt = new.generatedAt
     return old == new
@@ -59,7 +59,7 @@ final class SideEffects {
     }
   }
 
-  private func apply(_ snapshot: NestSnapshot) {
+  private func apply(_ snapshot: NestedSnapshot) {
     latest = snapshot
     SharedStore.reloadSurfaces()
     guard let store, snapshot.baby != nil else { return }

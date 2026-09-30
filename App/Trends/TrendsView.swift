@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SQLiteData
 import SwiftUI
 
@@ -64,7 +64,7 @@ struct TrendsView: View {
         }
         .padding()
       }
-      .nestBackground()
+      .nestedBackground()
       .actionBarInset(tab: .trends)
       .navigationTitle("Trends")
       .task(id: data.history) { await refreshSummary() }

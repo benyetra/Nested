@@ -1,6 +1,6 @@
 import Foundation
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SQLiteData
 #if canImport(WidgetKit)
   import WidgetKit
@@ -24,9 +24,9 @@ enum SharedStore {
     get throws {
       try lock.withLock {
         if let configured { return configured }
-        let database = NestBootstrap.run(sync: .deferred)
+        let database = NestedBootstrap.run(sync: .deferred)
         let store = LiveEventStore(database: database, onChange: { _ in
-          NestDatabase.postExternalWrite()
+          NestedDatabase.postExternalWrite()
           SharedStore.reloadSurfaces()
         })
         configured = store
@@ -49,32 +49,32 @@ enum SharedStore {
 /// Opens the database and sync engine for a process without ever crashing on a setup
 /// problem (missing App Group or iCloud capability). Problems are collected so the app can
 /// explain them instead.
-enum NestBootstrap {
+enum NestedBootstrap {
   nonisolated(unsafe) private(set) static var syncEngine: SyncEngine?
   nonisolated(unsafe) private(set) static var problems: [String] = []
 
-  static func run(sync: NestSyncMode, delegate: (any SyncEngineDelegate)? = nil) -> any DatabaseWriter {
+  static func run(sync: NestedSyncMode, delegate: (any SyncEngineDelegate)? = nil) -> any DatabaseWriter {
     var problems: [String] = []
-    if NestDatabase.fileURL == nil {
+    if NestedDatabase.fileURL == nil {
       problems.append(
         "The App Group \(DevicePrefs.appGroup) isn't available, so entries are kept in memory only "
           + "and widgets can't see them. Add the App Groups capability in Signing & Capabilities.")
     }
     let database: any DatabaseWriter
     do {
-      database = try NestDatabase.openShared()
+      database = try NestedDatabase.openShared()
     } catch {
       problems.append("Couldn't open the database: \(error.localizedDescription)")
-      database = try! NestDatabase.openInMemory()
+      database = try! NestedDatabase.openInMemory()
     }
     if sync != .none {
       do {
-        syncEngine = try NestDatabase.makeSyncEngine(
+        syncEngine = try NestedDatabase.makeSyncEngine(
           for: database, startImmediately: sync == .live, delegate: delegate)
       } catch {
         problems.append(
           "iCloud sync is off (\(error)). Check the iCloud capability with CloudKit and the "
-            + "container \(NestDatabase.containerIdentifier), and that this device is signed in to iCloud.")
+            + "container \(NestedDatabase.containerIdentifier), and that this device is signed in to iCloud.")
       }
     }
     let engine = syncEngine

@@ -1,6 +1,6 @@
-// Nest push Worker: the only server piece. The app calls it when a timer starts, changes or
+// Nested push Worker: the only server piece. The app calls it when a timer starts, changes or
 // stops, and when the feed alarm is stopped, so the partner's phone updates within seconds
-// even when Nest isn't running there. It holds the APNs .p8 key; nothing is stored.
+// even when Nested isn't running there. It holds the APNs .p8 key; nothing is stored.
 
 const encoder = new TextEncoder();
 let cachedToken = null; // { jwt, issuedAt }

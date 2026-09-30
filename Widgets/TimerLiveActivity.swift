@@ -1,6 +1,6 @@
 import ActivityKit
 import AppIntents
-import NestCore
+import NestedCore
 import SwiftUI
 import WidgetKit
 
@@ -8,14 +8,14 @@ import WidgetKit
 /// Elapsed time is drawn from the stored start, so it's right on both phones.
 struct TimerLiveActivity: Widget {
   var body: some WidgetConfiguration {
-    ActivityConfiguration(for: NestTimerAttributes.self) { context in
+    ActivityConfiguration(for: NestedTimerAttributes.self) { context in
       LockScreenActivityView(context: context)
         .padding()
         // A deep, nearly opaque shade of the timer's colour: white text stays readable on
         // any wallpaper. Colour on colour (the old tint) washed out.
         .activityBackgroundTint(context.attributes.kind.color.mix(with: .black, by: 0.55))
         .activitySystemActionForegroundColor(.white)
-        .widgetURL(NestLink.log(context.attributes.kind))
+        .widgetURL(NestedLink.log(context.attributes.kind))
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
@@ -48,11 +48,11 @@ struct TimerLiveActivity: Widget {
         Image(systemName: context.attributes.kind.symbol)
           .foregroundStyle(context.attributes.kind.color)
       }
-      .widgetURL(NestLink.log(context.attributes.kind))
+      .widgetURL(NestedLink.log(context.attributes.kind))
     }
   }
 
-  private func title(_ context: ActivityViewContext<NestTimerAttributes>) -> String {
+  private func title(_ context: ActivityViewContext<NestedTimerAttributes>) -> String {
     switch context.attributes.kind {
     case .nursing: context.state.isPaused ? "Paused" : (context.state.side?.title ?? "Nursing")
     case .pump: "Pumping"
@@ -62,7 +62,7 @@ struct TimerLiveActivity: Widget {
 }
 
 private struct TotalTimer: View {
-  let state: NestTimerAttributes.ContentState
+  let state: NestedTimerAttributes.ContentState
 
   var body: some View {
     Group {
@@ -78,7 +78,7 @@ private struct TotalTimer: View {
 }
 
 private struct LockScreenActivityView: View {
-  let context: ActivityViewContext<NestTimerAttributes>
+  let context: ActivityViewContext<NestedTimerAttributes>
 
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
@@ -118,7 +118,7 @@ private struct LockScreenActivityView: View {
 
 /// L | R with the current side highlighted.
 private struct SideIndicator: View {
-  let state: NestTimerAttributes.ContentState
+  let state: NestedTimerAttributes.ContentState
 
   var body: some View {
     HStack(spacing: 6) {
@@ -146,7 +146,7 @@ private struct SideIndicator: View {
 }
 
 private struct ActivityButtons: View {
-  let context: ActivityViewContext<NestTimerAttributes>
+  let context: ActivityViewContext<NestedTimerAttributes>
 
   var body: some View {
     HStack(spacing: 8) {
@@ -167,7 +167,7 @@ private struct ActivityButtons: View {
           Label("Awake", systemImage: "sun.max.fill").frame(maxWidth: .infinity)
         }
       default:
-        Link(destination: NestLink.log(.pump)) {
+        Link(destination: NestedLink.log(.pump)) {
           Label("Stop and enter volume", systemImage: "stop.fill").frame(maxWidth: .infinity)
         }
       }

@@ -1,6 +1,6 @@
 import Charts
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 /// Scrub support shared by every chart: a rule and value callout at the selected day.

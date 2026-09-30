@@ -13,7 +13,7 @@ import { createServer } from '../src/index.js';
 const NY = 'America/New_York';
 const fixture = (name) => join(import.meta.dirname, 'fixtures', name);
 
-// The same synthetic export is tested against NestKit/Tests/NestDataTests/HuckleberryImportTests.swift.
+// The same synthetic export is tested against NestedKit/Tests/NestedDataTests/HuckleberryImportTests.swift.
 function check(result) {
   const counts = {};
   for (const row of result.rows) counts[row.type] = (counts[row.type] ?? 0) + 1;
@@ -61,7 +61,7 @@ test('Output matches the fixture the Swift importer also reads', () => {
   const { rows } = parseHuckleberry(tableFromFile(readFileSync(fixture('huckleberry-sample.csv'))), NY);
   const csv = toCsv(rows);
   assert.ok(csv.startsWith(HEADER.join(',') + '\r\n'));
-  assert.equal(csv, readFileSync(fixture('expected-nest.csv'), 'utf8'));
+  assert.equal(csv, readFileSync(fixture('expected-nested.csv'), 'utf8'));
 });
 
 test('Time zones and date styles', () => {
@@ -113,7 +113,7 @@ test('Dry runs write nothing', () => {
   assert.match(result.text, /Dry run/);
 });
 
-test('importHuckleberryFile writes a Nest CSV', () => {
+test('importHuckleberryFile writes a Nested CSV', () => {
   const dir = mkdtempSync(join(tmpdir(), 'nested-'));
   const result = importHuckleberryFile({ path: fixture('huckleberry-sample.xlsx'), timezone: NY, outputDir: dir });
   assert.equal(result.rows, 11);

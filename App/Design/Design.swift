@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 // Motion spec from the PRD, in one place. Reduce Motion swaps springs for 200 ms cross-fades.
@@ -22,7 +22,7 @@ enum Motion {
 /// `withAnimation` that honours Reduce Motion (a 200 ms cross-fade instead of a spring).
 @MainActor
 @discardableResult
-func withNestAnimation<Result>(
+func withNestedAnimation<Result>(
   _ animation: Animation = Motion.standard, _ body: () throws -> Result
 ) rethrows -> Result {
   try withAnimation(Motion.resolve(animation, reduceMotion: UIAccessibility.isReduceMotionEnabled), body)
@@ -30,12 +30,12 @@ func withNestAnimation<Result>(
 
 extension View {
   /// Applies `animation` for `value`, or a short cross-fade under Reduce Motion.
-  func nestAnimation<V: Equatable>(_ animation: Animation = Motion.standard, value: V) -> some View {
-    modifier(NestAnimationModifier(animation: animation, value: value))
+  func nestedAnimation<V: Equatable>(_ animation: Animation = Motion.standard, value: V) -> some View {
+    modifier(NestedAnimationModifier(animation: animation, value: value))
   }
 }
 
-private struct NestAnimationModifier<V: Equatable>: ViewModifier {
+private struct NestedAnimationModifier<V: Equatable>: ViewModifier {
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
   let animation: Animation
   let value: V
@@ -88,13 +88,13 @@ enum Palette {
 
 /// The screen background used by every tab.
 extension View {
-  func nestBackground() -> some View {
+  func nestedBackground() -> some View {
     background(Palette.background.ignoresSafeArea())
   }
 
   /// For List/Form screens: hide the system gray so the warm paper shows through.
-  func nestListBackground() -> some View {
-    scrollContentBackground(.hidden).nestBackground()
+  func nestedListBackground() -> some View {
+    scrollContentBackground(.hidden).nestedBackground()
   }
 }
 

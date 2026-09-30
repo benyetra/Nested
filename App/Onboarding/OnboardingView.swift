@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 /// First launch: who's holding this phone, then either create the baby or wait for the
@@ -34,8 +34,8 @@ struct OnboardingView: View {
 
         if joining {
           Section {
-            Label("Ask your partner to open Nest → Settings → Share with your partner, and send you the invite.", systemImage: "1.circle")
-            Label("Open the invite link on this phone. Nest opens with your shared baby.", systemImage: "2.circle")
+            Label("Ask your partner to open Nested → Settings → Share with your partner, and send you the invite.", systemImage: "1.circle")
+            Label("Open the invite link on this phone. Nested opens with your shared baby.", systemImage: "2.circle")
           } footer: {
             Text("Both of you need to be signed in to iCloud.")
           }
@@ -52,8 +52,8 @@ struct OnboardingView: View {
           }
         }
       }
-      .nestListBackground()
-      .navigationTitle("Welcome to Nest")
+      .nestedListBackground()
+      .navigationTitle("Welcome to Nested")
       .safeAreaInset(edge: .bottom) {
         PrimaryButton(title: joining ? "Save my name" : "Start tracking", systemImage: "checkmark") {
           finish()

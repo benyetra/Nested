@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SQLiteData
 import SwiftUI
 
@@ -9,7 +9,7 @@ struct TimelineScreen: View {
   @Environment(AppModel.self) private var model
   @State private var days = 14
   @Fetch(TimelineRequest(days: 14), animation: Motion.standard) private var entries: [Entry] = []
-  private var snapshot: NestSnapshot { SideEffects.shared.snapshot }
+  private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
 
   private var sections: [(day: Date, entries: [Entry])] {
     let calendar = Calendar.current
@@ -63,7 +63,7 @@ struct TimelineScreen: View {
         }
       }
       .listStyle(.insetGrouped)
-      .nestListBackground()
+      .nestedListBackground()
       .actionBarInset(tab: .timeline)
       .navigationTitle("Timeline")
       .toolbar {

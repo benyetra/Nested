@@ -1,10 +1,10 @@
 import AppIntents
 import Foundation
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import Testing
 
-@testable import Nest
+@testable import Nested
 
 /// Every intent runs the same code path from widgets, controls, Siri and the Watch; these run
 /// each one against an in-memory database.
@@ -14,7 +14,7 @@ struct IntentTests {
   let store: LiveEventStore
 
   init() throws {
-    store = LiveEventStore(database: try NestDatabase.openInMemory(), owner: { "Bennett" })
+    store = LiveEventStore(database: try NestedDatabase.openInMemory(), owner: { "Bennett" })
     SharedStore.configure(store)
     var baby = try store.createBaby(
       name: "Maddie", birthDate: Date().addingTimeInterval(-20 * 86_400), feedingMode: .mixed, unit: .ml)
@@ -23,7 +23,7 @@ struct IntentTests {
     try store.updateBaby(baby)
   }
 
-  private var snapshot: NestSnapshot { get throws { try store.snapshot(now: Date()) } }
+  private var snapshot: NestedSnapshot { get throws { try store.snapshot(now: Date()) } }
 
   @Test func logBottleWithAmount() async throws {
     var intent = LogBottleIntent()

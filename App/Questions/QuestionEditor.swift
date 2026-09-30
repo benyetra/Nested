@@ -1,5 +1,5 @@
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 
 /// Write a question, or come back at the appointment and write down the answer.
@@ -43,7 +43,7 @@ struct QuestionEditor: View {
           }
         }
       }
-      .nestListBackground()
+      .nestedListBackground()
       .navigationTitle(question == nil ? "New question" : "Question")
       .navigationBarTitleDisplayMode(.inline)
       .toolbar {

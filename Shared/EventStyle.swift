@@ -1,4 +1,4 @@
-import NestCore
+import NestedCore
 import SwiftUI
 
 /// One semantic colour per event type, used on every surface: buttons, timeline, charts,
@@ -35,8 +35,8 @@ extension Font {
 }
 
 /// Deep links used by widgets and Lock Screen taps to open a log sheet.
-enum NestLink {
-  static let scheme = "nest"
+enum NestedLink {
+  static let scheme = "nested"
 
   static func log(_ kind: EventKind) -> URL {
     URL(string: "\(scheme)://log/\(kind.rawValue)")!

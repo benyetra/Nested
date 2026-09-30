@@ -1,6 +1,6 @@
 import AppIntents
-import NestCore
-import NestData
+import NestedCore
+import NestedData
 import SwiftUI
 import WidgetKit
 
@@ -33,7 +33,7 @@ private struct LockScreenView: View {
       }
     }
     // Tap opens the matching log sheet.
-    .widgetURL(NestLink.log(entry.snapshot.lastFeed?.isNursing == true ? .nursing : .bottle))
+    .widgetURL(NestedLink.log(entry.snapshot.lastFeed?.isNursing == true ? .nursing : .bottle))
   }
 }
 
@@ -47,7 +47,7 @@ struct HomeWidget: Widget {
       HomeWidgetView(entry: entry)
         .containerBackground(.fill.tertiary, for: .widget)
     }
-    .configurationDisplayName("Nest")
+    .configurationDisplayName("Nested")
     .description("Last fed and next feed; the medium and large sizes log with one tap.")
     .supportedFamilies([.systemSmall, .systemMedium, .systemLarge])
   }
@@ -57,7 +57,7 @@ private struct HomeWidgetView: View {
   @Environment(\.widgetFamily) private var family
   let entry: StatusEntry
 
-  private var snapshot: NestSnapshot { entry.snapshot }
+  private var snapshot: NestedSnapshot { entry.snapshot }
 
   var body: some View {
     switch family {
@@ -85,7 +85,7 @@ private struct HomeWidgetView: View {
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)
-    .widgetURL(NestLink.now)
+    .widgetURL(NestedLink.now)
   }
 
   private var medium: some View {

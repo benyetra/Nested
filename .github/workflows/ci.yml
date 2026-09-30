@@ -7,17 +7,17 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: nest-${{ github.ref }}
+  group: nested-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  nestkit-linux:
-    name: NestKit tests (Linux)
+  nestedkit-linux:
+    name: NestedKit tests (Linux)
     runs-on: ubuntu-latest
     container: swift:6.3-noble
     defaults:
       run:
-        working-directory: NestKit
+        working-directory: NestedKit
     steps:
       - uses: actions/checkout@v4
       - name: Install SQLite headers
@@ -68,8 +68,8 @@ jobs:
           xcodebuild -version
           xcrun simctl list runtimes
 
-      - name: NestKit tests (macOS)
-        working-directory: NestKit
+      - name: NestedKit tests (macOS)
+        working-directory: NestedKit
         run: swift test
 
       - name: Install XcodeGen
@@ -85,8 +85,8 @@ jobs:
         run: |
           set -o pipefail
           xcodebuild \
-            -project Nest.xcodeproj \
-            -scheme Nest \
+            -project Nested.xcodeproj \
+            -scheme Nested \
             -destination 'generic/platform=iOS Simulator' \
             -skipMacroValidation \
             -skipPackagePluginValidation \
@@ -107,8 +107,8 @@ jobs:
           ")
           echo "Simulator: $SIM_ID"
           xcodebuild \
-            -project Nest.xcodeproj \
-            -scheme Nest \
+            -project Nested.xcodeproj \
+            -scheme Nested \
             -destination "platform=iOS Simulator,id=$SIM_ID" \
             -skipMacroValidation \
             -skipPackagePluginValidation \

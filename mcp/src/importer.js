@@ -65,13 +65,13 @@ function writeImportFile(rows, label, outputDir) {
 }
 
 const HOW_TO_APPLY = [
-  'To bring it into Nest on the phone:',
+  'To bring it into Nested on the phone:',
   '1. Open the file from the Files app (iCloud Drive ▸ Nested Imports, or AirDrop it).',
-  '2. In Nest: Settings ▸ Export and import ▸ Import from Nest CSV…, and pick it.',
+  '2. In Nested: Settings ▸ Export and import ▸ Import from Nested CSV…, and pick it.',
   'Entries already logged at the same time are skipped, so importing twice is harmless.',
 ].join('\n');
 
-/** Huckleberry export (xlsx or csv) -> Nest CSV file. */
+/** Huckleberry export (xlsx or csv) -> Nested CSV file. */
 export function importHuckleberryFile({ path, timezone, outputDir, dryRun = false }) {
   const timeZone = resolveTimeZone(timezone);
   const file = path.startsWith('~') ? join(homedir(), path.slice(1)) : resolve(path);
@@ -96,7 +96,7 @@ export function importHuckleberryFile({ path, timezone, outputDir, dryRun = fals
   return { text: lines.join('\n'), counts, rows: rows.length, skipped, duplicates, path: outputPath };
 }
 
-/** Structured events (from text or screenshots) -> Nest CSV file. */
+/** Structured events (from text or screenshots) -> Nested CSV file. */
 export function importEvents({ events, timezone, outputDir, dryRun = false, label = 'events' }) {
   const timeZone = resolveTimeZone(timezone);
   const parsed = events.map((event, i) => {
@@ -125,9 +125,9 @@ export function importEvents({ events, timezone, outputDir, dryRun = false, labe
   return { text: lines.join('\n'), counts, rows: rows.length, problems: allProblems, path: outputPath };
 }
 
-export const FORMAT_GUIDE = `# Nest import guide
+export const FORMAT_GUIDE = `# Nested import guide
 
-Nest imports one CSV format (columns: ${HEADER.join(', ')}). You never write it by hand:
+Nested imports one CSV format (columns: ${HEADER.join(', ')}). You never write it by hand:
 use the tools, which validate and convert.
 
 ## Sources
@@ -158,6 +158,6 @@ pump(start,end?,leftMl|leftOz?,rightMl|rightOz?,destination?) · note(time,text,
 
 ## Getting it into the app
 The tools write a CSV (to iCloud Drive/Nested Imports when available) that the person opens from the
-Files app, then Nest ▸ Settings ▸ Export and import ▸ Import from Nest CSV…. Re-importing is harmless:
+Files app, then Nested ▸ Settings ▸ Export and import ▸ Import from Nested CSV…. Re-importing is harmless:
 entries at the same time as existing ones are skipped.
 `;
