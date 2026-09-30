@@ -29,16 +29,20 @@ final class SideEffects {
     cancellable = $fetched.publisher
       // `generatedAt` changes on every fetch; only real changes should touch widgets,
       // alarms and Live Activities.
-      .removeDuplicates { old, new in
-        var old = old
-        old.generatedAt = new.generatedAt
-        return old == new
-      }
+      .removeDuplicates(by: Self.isSameContent)
       .debounce(for: .milliseconds(250), scheduler: RunLoop.main)
       .sink { [weak self] snapshot in
         MainActor.assumeIsolated { self?.apply(snapshot) }
       }
     LiveActivityService.shared.startObservingTokens(store: store)
+  }
+
+  /// Runs on the database's thread, so it must not be main-actor isolated (a closure written
+  /// inline here would inherit that isolation and trap at runtime).
+  nonisolated private static func isSameContent(_ old: NestSnapshot, _ new: NestSnapshot) -> Bool {
+    var old = old
+    old.generatedAt = new.generatedAt
+    return old == new
   }
 
   /// The owner name changed: rebuild the snapshot for the new "me".
