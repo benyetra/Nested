@@ -34,7 +34,12 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     let logBottle = UNNotificationAction(identifier: Action.logBottle, title: "Log bottle", options: [])
     let startNursing = UNNotificationAction(identifier: Action.startNursing, title: "Start nursing", options: [])
     let snooze = UNNotificationAction(identifier: Action.snooze, title: "Snooze 15 min", options: [])
+    let given = UNNotificationAction(identifier: MedicationReminderService.given, title: "Given", options: [])
+    let medSnooze = UNNotificationAction(identifier: MedicationReminderService.snooze, title: "Snooze 15 min", options: [])
+    let skip = UNNotificationAction(identifier: MedicationReminderService.skip, title: "Skip", options: [.destructive])
     center.setNotificationCategories([
+      UNNotificationCategory(
+        identifier: MedicationReminderService.category, actions: [given, medSnooze, skip], intentIdentifiers: []),
       UNNotificationCategory(
         identifier: Self.feedCategory, actions: [logBottle, startNursing, snooze], intentIdentifiers: []),
       UNNotificationCategory(identifier: Self.flagCategory, actions: [], intentIdentifiers: []),
@@ -97,6 +102,10 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     didReceive response: UNNotificationResponse
   ) async {
     let action = response.actionIdentifier
+    let info = response.notification.request.content.userInfo
+    let medicationID = info["medicationID"] as? String
+    let dueAt = info["dueAt"] as? Double
+    let body = response.notification.request.content.body
     await MainActor.run {
       guard let store = try? SharedStore.store else { return }
       switch action {
@@ -107,6 +116,25 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
           offeredMl: nil, formulaBrand: snapshot?.baby?.formulaBrand, at: Date(), note: "", endSleep: true)
       case Action.startNursing:
         _ = try? store.startNursing(side: nil, at: Date(), endSleep: true)
+      case MedicationReminderService.given, MedicationReminderService.skip:
+        guard let medicationID, let id = UUID(uuidString: medicationID) else { return }
+        _ = try? store.logDose(
+          medicationID: id, dueAt: dueAt.map { Date(timeIntervalSince1970: $0) }, at: Date(),
+          skipped: action == MedicationReminderService.skip)
+      case MedicationReminderService.snooze:
+        guard let medicationID, let dueAt else { return }
+        let content = UNMutableNotificationContent()
+        content.title = "Medicine time"
+        content.body = body
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+        content.categoryIdentifier = MedicationReminderService.category
+        content.userInfo = ["medicationID": medicationID, "dueAt": dueAt]
+        UNUserNotificationCenter.current().add(
+          UNNotificationRequest(
+            identifier: MedicationReminderService.snoozeIdentifier(medicationID: medicationID, due: dueAt),
+            content: content,
+            trigger: UNTimeIntervalNotificationTrigger(timeInterval: 15 * 60, repeats: false)))
       case Action.snooze:
         let content = UNMutableNotificationContent()
         content.title = "Feed reminder"

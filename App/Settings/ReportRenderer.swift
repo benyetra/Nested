@@ -9,7 +9,8 @@ enum ReportRenderer {
   static let pageSize = CGSize(width: 612, height: 792)
 
   static func render(
-    baby: Baby, history: History, notes: [BabyNote], questions: [Question] = [], days: Int, now: Date = Date()
+    baby: Baby, history: History, notes: [BabyNote], questions: [Question] = [], medications: [Medication] = [],
+    days: Int, now: Date = Date()
   ) throws -> URL {
     // Start at the birth, not at the range: no rows of zeros for days before she was born.
     let stats = DailyStatsBuilder.trimmed(
@@ -27,7 +28,7 @@ enum ReportRenderer {
       pages.append(AnyView(QuestionsPage(baby: baby, questions: questions)))
     }
     pages.append(AnyView(DayClockPage(baby: baby, history: history, days: stats.count, now: now)))
-    pages.append(AnyView(LogPage(baby: baby, stools: stools, notes: reportNotes)))
+    pages.append(AnyView(LogPage(baby: baby, stools: stools, notes: reportNotes, medications: medications.filter(\.isActive))))
 
     let name = "\(baby.name.isEmpty ? "Baby" : baby.name) report \(now.formatted(.iso8601.year().month().day())).pdf"
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -219,6 +220,12 @@ private struct LogPage: View {
   let baby: Baby
   let stools: [DiaperRecord]
   let notes: [BabyNote]
+  var medications: [Medication] = []
+
+  static func timeText(_ minutes: Int) -> String {
+    Calendar.current.date(byAdding: .minute, value: minutes, to: Calendar.current.startOfDay(for: Date()))?
+      .formatted(date: .omitted, time: .shortened) ?? ""
+  }
 
   var body: some View {
     PageFrame(baby: baby, title: "Stool colours and notes") {
@@ -236,6 +243,16 @@ private struct LogPage: View {
           }
         }
         .font(.caption)
+      }
+      if !medications.isEmpty {
+        Divider()
+        Text("Medicines").font(.headline)
+        ForEach(medications) { medication in
+          Text(
+            "\(medication.name)\(medication.dose.isEmpty ? "" : " \(medication.dose)") · \(medication.forWho.isEmpty ? baby.name : medication.forWho) · \(MedicationSchedule.cadenceSummary(medication.plan, timeStyle: Self.timeText))"
+          )
+          .font(.caption)
+        }
       }
       Divider()
       Text("Notes").font(.headline)

@@ -65,6 +65,7 @@ final class SideEffects {
     guard let store, snapshot.baby != nil else { return }
     LiveActivityService.shared.reconcile(snapshot)
     NotificationService.shared.reconcile(snapshot)
+    MedicationReminderService.shared.reconcile(snapshot)
     Task { await FeedAlarmService.shared.reconcile(snapshot, store: store) }
   }
 

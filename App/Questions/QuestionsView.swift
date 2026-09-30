@@ -5,7 +5,8 @@ import SwiftUI
 
 /// Questions for the pediatrician as a shared to-do list. Jot one down any time; at the
 /// appointment, tick it off and write the answer underneath.
-struct QuestionsView: View {
+struct QuestionsList: View {
+  @Binding var mode: DoctorMode
   @Environment(AppModel.self) private var model
   @Fetch(QuestionsRequest(), animation: Motion.standard) private var questions: [Question] = []
   @State private var draft = ""
@@ -19,8 +20,8 @@ struct QuestionsView: View {
   private var answered: [Question] { questions.filter(\.isDone) }
 
   var body: some View {
-    NavigationStack {
-      List {
+    List {
+        DoctorModePicker(mode: $mode)
         Section {
           HStack(spacing: 10) {
             Button(action: addDraft) {
@@ -60,9 +61,6 @@ struct QuestionsView: View {
       }
       .listStyle(.insetGrouped)
       .scrollDismissesKeyboard(.interactively)
-      .nestedListBackground()
-      .actionBarInset(tab: .questions)
-      .navigationTitle("Doctor")
       .toolbar {
         ToolbarItemGroup(placement: .keyboard) {
           Spacer()
@@ -82,7 +80,6 @@ struct QuestionsView: View {
       }
       .sheet(item: $editing) { QuestionEditor(question: $0) }
       .sheet(isPresented: $creating) { QuestionEditor(question: nil) }
-    }
   }
 
   private func addDraft() {

@@ -286,7 +286,8 @@ struct SettingsView: View {
           return nil
         }
       reportURL = try ReportRenderer.render(
-        baby: baby, history: history, notes: notes, questions: try model.store.questions(), days: reportDays)
+        baby: baby, history: history, notes: notes, questions: try model.store.questions(),
+        medications: try model.store.medications(), days: reportDays)
     } catch {
       model.errorMessage = "Couldn't create the report: \(error.localizedDescription)"
     }
