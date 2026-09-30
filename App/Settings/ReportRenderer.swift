@@ -173,6 +173,7 @@ private struct QuestionsPage: View {
 
   private var open: [Question] { questions.filter { !$0.isDone } }
   private var answered: [Question] { questions.filter(\.isDone) }
+  private var writingLines: Int { open.count <= 4 ? 3 : (open.count <= 7 ? 2 : 1) }
 
   var body: some View {
     PageFrame(baby: baby, title: "Questions for the doctor") {
@@ -181,9 +182,12 @@ private struct QuestionsPage: View {
         ForEach(open.prefix(9)) { question in
           HStack(alignment: .top, spacing: 10) {
             Image(systemName: "square").font(.callout)
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 22) {
               Text(RichText(stored: question.body).attributed()).font(.callout)
-              Rectangle().fill(Color.black.opacity(0.18)).frame(height: 0.5)
+              // Room to write the doctor's answer by hand: more lines when there are few questions.
+              ForEach(0..<writingLines, id: \.self) { _ in
+                Rectangle().fill(Color.black.opacity(0.18)).frame(height: 0.5)
+              }
             }
           }
         }
