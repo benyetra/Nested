@@ -11,18 +11,25 @@ struct TimerLiveActivity: Widget {
     ActivityConfiguration(for: NestTimerAttributes.self) { context in
       LockScreenActivityView(context: context)
         .padding()
-        .activityBackgroundTint(context.attributes.kind.color.opacity(0.25))
+        // A deep, nearly opaque shade of the timer's colour: white text stays readable on
+        // any wallpaper. Colour on colour (the old tint) washed out.
+        .activityBackgroundTint(context.attributes.kind.color.mix(with: .black, by: 0.55))
+        .activitySystemActionForegroundColor(.white)
         .widgetURL(NestLink.log(context.attributes.kind))
     } dynamicIsland: { context in
       DynamicIsland {
         DynamicIslandExpandedRegion(.leading) {
-          Label(title(context), systemImage: context.attributes.kind.symbol)
-            .font(.headline)
-            .foregroundStyle(context.attributes.kind.color)
+          Label {
+            Text(title(context)).foregroundStyle(.white)
+          } icon: {
+            Image(systemName: context.attributes.kind.symbol).foregroundStyle(context.attributes.kind.color)
+          }
+          .font(.headline)
         }
         DynamicIslandExpandedRegion(.trailing) {
           TotalTimer(state: context.state)
             .font(.title2.weight(.semibold))
+            .foregroundStyle(.white)
             .frame(maxWidth: 110, alignment: .trailing)
         }
         DynamicIslandExpandedRegion(.bottom) {
@@ -76,20 +83,27 @@ private struct LockScreenActivityView: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
-        Label(headline, systemImage: context.attributes.kind.symbol)
-          .font(.headline)
-          .foregroundStyle(context.attributes.kind.color)
+        Label {
+          Text(headline).foregroundStyle(.white)
+        } icon: {
+          Image(systemName: context.attributes.kind.symbol)
+            .foregroundStyle(.white)
+            .frame(width: 30, height: 30)
+            .background(Circle().fill(context.attributes.kind.color))
+        }
+        .font(.headline)
         Spacer()
         TotalTimer(state: context.state)
           .font(.title.weight(.semibold))
+          .foregroundStyle(.white)
       }
       if context.attributes.kind == .nursing {
         SideIndicator(state: context.state)
       }
       ActivityButtons(context: context)
       Text("Started by \(context.state.loggedBy.isEmpty ? "someone" : context.state.loggedBy)")
-        .font(.caption2)
-        .foregroundStyle(.secondary)
+        .font(.caption)
+        .foregroundStyle(.white.opacity(0.8))
     }
   }
 
@@ -120,11 +134,12 @@ private struct SideIndicator: View {
           }
         }
         .font(.subheadline)
+        .foregroundStyle(.white)
         .padding(.horizontal, 10)
         .padding(.vertical, 6)
         .background(
           RoundedRectangle(cornerRadius: 10)
-            .fill(current ? EventKind.nursing.color.opacity(0.45) : Color.secondary.opacity(0.15)))
+            .fill(current ? EventKind.nursing.color : Color.white.opacity(0.16)))
       }
     }
   }
@@ -159,6 +174,8 @@ private struct ActivityButtons: View {
     }
     .font(.subheadline.weight(.semibold))
     .buttonStyle(.bordered)
-    .tint(context.attributes.kind.color)
+    // White on a dark shade reads on the lock screen and the black Dynamic Island alike.
+    .tint(.white)
+    .foregroundStyle(.white)
   }
 }
