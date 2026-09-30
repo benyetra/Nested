@@ -69,6 +69,8 @@ public enum NestedDatabase {
         EntryRevision.self,
         Question.self,
         Avatar.self,
+        Medication.self,
+        MedicationDose.self,
         containerIdentifier: containerIdentifier,
         startImmediately: startImmediately,
         delegate: delegate

@@ -106,6 +106,20 @@ public protocol EventStore: Sendable {
   /// Puts a deleted question back (undo).
   func restoreQuestion(_ question: Question) throws
 
+  // Medications
+  /// A blank medicine for this baby, not yet saved.
+  func draftMedication() throws -> Medication
+  func medications() throws -> [Medication]
+  func saveMedication(_ medication: Medication) throws
+  func deleteMedication(id: UUID) throws
+  func restoreMedication(_ medication: Medication) throws
+  /// Records a dose. A dose already logged for the same due time (by either phone) is returned
+  /// instead of adding a second, so two parents tapping "Given" never double-count.
+  @discardableResult
+  func logDose(medicationID: UUID, dueAt: Date?, at date: Date, skipped: Bool) throws -> MedicationDose
+  func deleteDose(id: UUID) throws
+  func doses(since: Date) throws -> [MedicationDose]
+
   // Photos
   /// Sets (or, with nil, removes) the photo for `Avatar.babySubject` / `Avatar.parentSubject(name)`.
   func setAvatar(subject: String, photo: Data?) throws
@@ -626,6 +640,83 @@ public struct LiveEventStore: EventStore {
   public func revisions(of entryID: UUID) throws -> [EntryRevision] {
     try database.read { db in
       try EntryRevision.where { $0.entryID.eq(entryID) }.order { $0.editedAt.desc() }.fetchAll(db)
+    }
+  }
+
+  // MARK: Medications
+
+  public func draftMedication() throws -> Medication {
+    let stamp = now()
+    return try database.read { db in
+      let baby = try requireBaby(db)
+      return Medication(
+        id: UUID(), babyID: baby.id, startsAt: stamp, createdBy: owner(), createdAt: stamp, editedAt: stamp)
+    }
+  }
+
+  public func medications() throws -> [Medication] {
+    try database.read { db in
+      guard let baby = try Self.currentBaby(db) else { return [] }
+      return try Medication.where { $0.babyID.eq(baby.id) }.order { $0.createdAt.asc() }.fetchAll(db)
+    }
+  }
+
+  public func saveMedication(_ medication: Medication) throws {
+    var medication = medication
+    medication.editedAt = now()
+    try database.write { db in
+      try Medication.upsert { medication }.execute(db)
+    }
+  }
+
+  public func deleteMedication(id: UUID) throws {
+    try database.write { db in
+      try MedicationDose.where { $0.medicationID.eq(id) }.delete().execute(db)
+      try Medication.find(id).delete().execute(db)
+    }
+  }
+
+  public func restoreMedication(_ medication: Medication) throws {
+    try database.write { db in try Medication.upsert { medication }.execute(db) }
+  }
+
+  public func logDose(medicationID: UUID, dueAt: Date?, at date: Date, skipped: Bool) throws -> MedicationDose {
+    try database.write { db in
+      let baby = try requireBaby(db)
+      guard let medication = try Medication.find(medicationID).fetchOne(db) else { throw StoreError.notFound }
+      let existing = try MedicationDose.where { $0.medicationID.eq(medicationID) }
+        .order { $0.takenAt.desc() }.limit(40).fetchAll(db)
+
+      // The reminder this dose answers: the one named, or the nearest unsettled one.
+      let settles =
+        dueAt
+        ?? MedicationSchedule.dueToSettle(
+          takenAt: date, plan: medication.plan, doses: existing.map(\.record), calendar: calendar)
+
+      // The same due time, or two taps within two minutes, is one dose.
+      if let duplicate = existing.first(where: { dose in
+        if let settles, let due = dose.dueAt { return abs(due.timeIntervalSince(settles)) < 60 }
+        return abs(dose.takenAt.timeIntervalSince(date)) < 120
+      }) {
+        return duplicate
+      }
+      let dose = MedicationDose(
+        id: UUID(), babyID: baby.id, medicationID: medicationID, dueAt: settles, takenAt: date,
+        takenBy: owner(), skipped: skipped)
+      try MedicationDose.insert { dose }.execute(db)
+      return dose
+    }
+  }
+
+  public func deleteDose(id: UUID) throws {
+    try database.write { db in try MedicationDose.find(id).delete().execute(db) }
+  }
+
+  public func doses(since: Date) throws -> [MedicationDose] {
+    try database.read { db in
+      guard let baby = try Self.currentBaby(db) else { return [] }
+      return try MedicationDose.where { $0.babyID.eq(baby.id) && $0.takenAt.gte(since) }
+        .order { $0.takenAt.desc() }.fetchAll(db)
     }
   }
 

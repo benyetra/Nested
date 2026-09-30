@@ -20,6 +20,7 @@ extension StoolConsistency: QueryBindable {}
 extension DiaperSize: QueryBindable {}
 extension SleepLocation: QueryBindable {}
 extension NoteTag: QueryBindable {}
+extension MedicationCadence: QueryBindable {}
 extension PumpDestination: QueryBindable {}
 extension FeedingMode: QueryBindable {}
 extension VolumeUnit: QueryBindable {}
@@ -266,6 +267,60 @@ public struct Avatar: Identifiable, Hashable, Sendable, Codable {
 
   public static let babySubject = "baby"
   public static func parentSubject(_ name: String) -> String { "parent:\(name)" }
+}
+
+/// A medicine on a schedule, for the baby or a parent. Both phones schedule the same reminders
+/// from these rows, so they go off at the same moment.
+@Table("medications")
+public struct Medication: Identifiable, Hashable, Sendable, Codable {
+  public let id: UUID
+  public var babyID: Baby.ID
+  public var name = ""
+  /// Free text: "1 mL", "400 IU", "half a tablet".
+  public var dose = ""
+  /// Who takes it: empty for the baby, otherwise a parent's name.
+  public var forWho = ""
+  public var cadence: MedicationCadence = .fixedTimes
+  /// JSON array of minutes after midnight, for set-time schedules.
+  public var timesOfDay = "[]"
+  public var intervalMinutes = 0
+  public var startsAt: Date
+  public var endsAt: Date?
+  public var notes = ""
+  public var isActive = true
+  public var createdBy = ""
+  public var createdAt: Date
+  public var editedAt: Date
+
+  public var times: [Int] {
+    get { (try? JSONDecoder().decode([Int].self, from: Data(timesOfDay.utf8))) ?? [] }
+    set {
+      let sorted = Array(Set(newValue)).sorted()
+      timesOfDay = (try? JSONEncoder().encode(sorted)).flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
+    }
+  }
+
+  public var plan: MedicationPlan {
+    MedicationPlan(
+      cadence: cadence, timesOfDay: times, intervalMinutes: intervalMinutes, startsAt: startsAt,
+      endsAt: endsAt, isActive: isActive)
+  }
+}
+
+/// One dose given (or skipped on purpose). `dueAt` ties it to the reminder it answers, so the
+/// other phone stops asking.
+@Table("medicationDoses")
+public struct MedicationDose: Identifiable, Hashable, Sendable, Codable {
+  public let id: UUID
+  public var babyID: Baby.ID
+  public var medicationID: Medication.ID
+  public var dueAt: Date?
+  public var takenAt: Date
+  public var takenBy = ""
+  public var skipped = false
+  public var note = ""
+
+  public var record: DoseRecord { DoseRecord(dueAt: dueAt, takenAt: takenAt, skipped: skipped) }
 }
 
 /// One row per installed device: Live Activity push tokens for the Worker, plus the
@@ -597,6 +652,55 @@ public enum NestedSchema {
         sql: """
           CREATE INDEX IF NOT EXISTS "idx_avatars_babyID" ON "avatars"("babyID")
           """)
+    }
+
+    migrator.registerMigration("v4: medications") { db in
+      try #sql(
+        """
+        CREATE TABLE "medications" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "babyID" TEXT NOT NULL REFERENCES "babies"("id") ON DELETE CASCADE,
+          "name" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "dose" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "forWho" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "cadence" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT 'fixedTimes',
+          "timesOfDay" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '[]',
+          "intervalMinutes" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0,
+          "startsAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now')),
+          "endsAt" TEXT,
+          "notes" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "isActive" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 1,
+          "createdBy" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "createdAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now')),
+          "editedAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now'))
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try #sql(
+        """
+        CREATE TABLE "medicationDoses" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "babyID" TEXT NOT NULL REFERENCES "babies"("id") ON DELETE CASCADE,
+          "medicationID" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "dueAt" TEXT,
+          "takenAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now')),
+          "takenBy" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "skipped" INTEGER NOT NULL ON CONFLICT REPLACE DEFAULT 0,
+          "note" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT ''
+        ) STRICT
+        """
+      )
+      .execute(db)
+      for (table, column) in [
+        ("medications", "babyID"), ("medicationDoses", "babyID"),
+        ("medicationDoses", "medicationID"), ("medicationDoses", "takenAt"),
+      ] {
+        try db.execute(
+          sql: """
+            CREATE INDEX IF NOT EXISTS "idx_\(table)_\(column)" ON "\(table)"("\(column)")
+            """)
+      }
     }
 
     return migrator

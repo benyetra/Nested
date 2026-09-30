@@ -396,3 +396,89 @@ struct AvatarTests {
     #expect(try store.avatars().map(\.subject) == [Avatar.parentSubject("Yvette")])
   }
 }
+
+@Suite("Medications", .serialized)
+struct MedicationStoreTests {
+  private func makeMedication(_ store: LiveEventStore, at start: Date) throws -> Medication {
+    var medication = try store.draftMedication()
+    medication.name = "Vitamin D"
+    medication.dose = "1 mL"
+    medication.cadence = .fixedTimes
+    medication.times = [20 * 60, 8 * 60]
+    medication.startsAt = start
+    try store.saveMedication(medication)
+    return medication
+  }
+
+  @Test("Saved medicines keep their times, sorted, and show in the snapshot with their doses")
+  func saveAndSnapshot() throws {
+    let clock = TestClock(t(day: 3, 7))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    let saved = try makeMedication(store, at: t(day: 1, 0))
+
+    let loaded = try #require(store.medications().first)
+    #expect(loaded.id == saved.id && loaded.times == [8 * 60, 20 * 60] && loaded.dose == "1 mL")
+
+    try store.logDose(medicationID: saved.id, dueAt: nil, at: t(day: 3, 8, 5), skipped: false)
+    let snapshot = try store.snapshot(now: clock.now)
+    #expect(snapshot.medications.count == 1)
+    #expect(snapshot.medicationDoses.count == 1)
+  }
+
+  @Test("Giving a dose settles the nearest due time; both parents tapping is one dose")
+  func bothParentsTap() throws {
+    let clock = TestClock(t(day: 3, 8, 10))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    let medication = try makeMedication(store, at: t(day: 1, 0))
+    let due = t(day: 3, 8)
+
+    let first = try store.logDose(medicationID: medication.id, dueAt: due, at: t(day: 3, 8, 10), skipped: false)
+    // The partner's phone, a few seconds later, answering the same reminder.
+    let second = try store.logDose(medicationID: medication.id, dueAt: due, at: t(day: 3, 8, 11), skipped: false)
+    #expect(first.id == second.id)
+    #expect(try store.doses(since: .distantPast).count == 1)
+
+    // A repeat tap from the app a moment later is the same dose.
+    let repeatTap = try store.logDose(medicationID: medication.id, dueAt: nil, at: t(day: 3, 8, 11), skipped: false)
+    #expect(repeatTap.id == first.id)
+
+    // Ten minutes later is a real extra dose, which the app warns about before logging.
+    let extra = try store.logDose(medicationID: medication.id, dueAt: nil, at: t(day: 3, 8, 20), skipped: false)
+    #expect(extra.id != first.id && extra.dueAt == nil)
+
+    // The evening dose settles the evening due time.
+    let evening = try store.logDose(medicationID: medication.id, dueAt: nil, at: t(day: 3, 20, 5), skipped: false)
+    #expect(evening.dueAt == t(day: 3, 20))
+    #expect(try store.doses(since: .distantPast).count == 3)
+  }
+
+  @Test("A skipped dose is recorded and an extra dose has no due time")
+  func skippedAndExtra() throws {
+    let clock = TestClock(t(day: 3, 12))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    let medication = try makeMedication(store, at: t(day: 1, 0))
+
+    let skipped = try store.logDose(medicationID: medication.id, dueAt: t(day: 3, 8), at: t(day: 3, 9), skipped: true)
+    #expect(skipped.skipped && skipped.dueAt == t(day: 3, 8))
+    let extra = try store.logDose(medicationID: medication.id, dueAt: nil, at: t(day: 3, 14), skipped: false)
+    #expect(extra.dueAt == nil)
+  }
+
+  @Test("Deleting a medicine deletes its doses; deleting the baby's data removes everything")
+  func deleting() throws {
+    let clock = TestClock(t(day: 3, 12))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    let medication = try makeMedication(store, at: t(day: 1, 0))
+    let dose = try store.logDose(medicationID: medication.id, dueAt: nil, at: t(day: 3, 8, 5), skipped: false)
+
+    try store.deleteDose(id: dose.id)
+    #expect(try store.doses(since: .distantPast).isEmpty)
+    try store.logDose(medicationID: medication.id, dueAt: nil, at: t(day: 3, 8, 5), skipped: false)
+    try store.deleteMedication(id: medication.id)
+    #expect(try store.medications().isEmpty && (try store.doses(since: .distantPast)).isEmpty)
+  }
+}

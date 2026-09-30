@@ -362,3 +362,91 @@ struct TrendSummaryTests {
     #expect(!none.facts(babyName: "Maddie", unit: .ml).joined().contains("top-up"))
   }
 }
+
+@Suite("Medication schedules")
+struct MedicationScheduleTests {
+  private var utc: Calendar {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "UTC")!
+    return cal
+  }
+
+  private func at(_ day: Int, _ hour: Int, _ minute: Int = 0) -> Date {
+    utc.date(from: DateComponents(year: 2026, month: 10, day: day, hour: hour, minute: minute))!
+  }
+
+  private var twiceDaily: MedicationPlan {
+    MedicationPlan(cadence: .fixedTimes, timesOfDay: [20 * 60, 8 * 60], startsAt: at(1, 0))
+  }
+
+  @Test("Fixed times list each day's doses in order, within the window")
+  func fixedTimes() {
+    let due = MedicationSchedule.occurrences(plan: twiceDaily, doses: [], from: at(3, 9), to: at(5, 9), calendar: utc)
+    #expect(due == [at(3, 20), at(4, 8), at(4, 20), at(5, 8)])
+  }
+
+  @Test("A course only runs between its start and end")
+  func bounds() {
+    var plan = twiceDaily
+    plan.startsAt = at(3, 12)
+    plan.endsAt = at(4, 12)
+    let due = MedicationSchedule.occurrences(plan: plan, doses: [], from: at(3, 0), to: at(6, 0), calendar: utc)
+    #expect(due == [at(3, 20), at(4, 8)])
+    plan.isActive = false
+    #expect(MedicationSchedule.occurrences(plan: plan, doses: [], from: at(3, 0), to: at(6, 0), calendar: utc).isEmpty)
+  }
+
+  @Test("A logged dose settles its due time, whichever phone logged it")
+  func handled() {
+    let doses = [DoseRecord(dueAt: at(3, 20), takenAt: at(3, 20, 7))]
+    let pending = MedicationSchedule.pending(plan: twiceDaily, doses: doses, from: at(3, 19), within: 14 * 3600, calendar: utc)
+    #expect(pending == [at(4, 8)])
+    // An unlinked dose given near a due time also settles it.
+    let loose = [DoseRecord(dueAt: nil, takenAt: at(4, 7, 30))]
+    #expect(MedicationSchedule.isHandled(at(4, 8), doses: loose))
+    #expect(!MedicationSchedule.isHandled(at(4, 20), doses: loose))
+  }
+
+  @Test("A dose given near a due time is linked to it; an extra dose is not")
+  func linking() {
+    #expect(MedicationSchedule.dueToSettle(takenAt: at(4, 9), plan: twiceDaily, doses: [], calendar: utc) == at(4, 8))
+    #expect(MedicationSchedule.dueToSettle(takenAt: at(4, 14), plan: twiceDaily, doses: [], calendar: utc) == nil)
+  }
+
+  @Test("Every-N-hours counts from the last dose, and only the next one is known")
+  func rolling() {
+    let plan = MedicationPlan(cadence: .everyHours, intervalMinutes: 360, startsAt: at(3, 6))
+    #expect(MedicationSchedule.pending(plan: plan, doses: [], from: at(3, 0), within: 86_400, calendar: utc) == [at(3, 6)])
+    let doses = [DoseRecord(dueAt: at(3, 6), takenAt: at(3, 6, 40))]
+    #expect(MedicationSchedule.pending(plan: plan, doses: doses, from: at(3, 7), within: 86_400, calendar: utc) == [at(3, 12, 40)])
+  }
+
+  @Test("Status: upcoming, due, overdue, then given")
+  func status() {
+    let upcoming = MedicationSchedule.status(plan: twiceDaily, doses: [], now: at(4, 7), calendar: utc)
+    #expect(upcoming == .upcoming(at(4, 8)))
+    #expect(MedicationSchedule.status(plan: twiceDaily, doses: [], now: at(4, 8, 20), calendar: utc) == .due(since: at(4, 8)))
+    #expect(MedicationSchedule.status(plan: twiceDaily, doses: [], now: at(4, 10), calendar: utc) == .overdue(since: at(4, 8)))
+    let given = [DoseRecord(dueAt: at(4, 8), takenAt: at(4, 8, 5))]
+    #expect(MedicationSchedule.status(plan: twiceDaily, doses: given, now: at(4, 10), calendar: utc) == .upcoming(at(4, 20)))
+    // Six hours past, a missed dose stops nagging.
+    #expect(MedicationSchedule.status(plan: twiceDaily, doses: [], now: at(4, 15), calendar: utc) == .upcoming(at(4, 20)))
+  }
+
+  @Test("As-needed medicines wait out their minimum gap")
+  func asNeeded() {
+    let plan = MedicationPlan(cadence: .asNeeded, intervalMinutes: 360, startsAt: at(1, 0))
+    let doses = [DoseRecord(dueAt: nil, takenAt: at(4, 9))]
+    #expect(MedicationSchedule.status(plan: plan, doses: doses, now: at(4, 11), calendar: utc) == .asNeeded(lastGiven: at(4, 9), okAfter: at(4, 15)))
+    #expect(MedicationSchedule.status(plan: plan, doses: doses, now: at(4, 16), calendar: utc) == .asNeeded(lastGiven: at(4, 9), okAfter: nil))
+    #expect(MedicationSchedule.status(plan: plan, doses: [], now: at(4, 16), calendar: utc) == .asNeeded(lastGiven: nil, okAfter: nil))
+  }
+
+  @Test("Cadence wording")
+  func wording() {
+    let style: (Int) -> String = { "\($0 / 60):\(String(format: "%02d", $0 % 60))" }
+    #expect(MedicationSchedule.cadenceSummary(twiceDaily, timeStyle: style) == "Daily at 8:00, 20:00")
+    #expect(MedicationSchedule.cadenceSummary(MedicationPlan(cadence: .everyHours, intervalMinutes: 360, startsAt: at(1, 0)), timeStyle: style) == "Every 6 hours")
+    #expect(MedicationSchedule.cadenceSummary(MedicationPlan(cadence: .asNeeded, startsAt: at(1, 0)), timeStyle: style) == "As needed")
+  }
+}

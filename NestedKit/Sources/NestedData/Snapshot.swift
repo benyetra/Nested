@@ -59,12 +59,16 @@ public struct NestedSnapshot: Hashable, Sendable {
   public var feedAlarm: FeedAlarm?
   public var devices: [DeviceToken]
 
+  public var medications: [Medication] = []
+  /// The last two weeks of doses, newest first.
+  public var medicationDoses: [MedicationDose] = []
+
   public static let empty = NestedSnapshot(
     baby: nil, me: "", generatedAt: .distantPast, history: History(), lastFeed: nil,
     lastBottle: nil, lastDiaper: nil, lastSleep: nil, activeNursing: nil, activePump: nil,
     activeSleep: nil, feedPrediction: nil, napPrediction: nil, nextSide: .left,
     defaultBottleMl: nil, totals24h: RollingTotals(), todayFeeds: 0, todayWet: 0, todayDirty: 0,
-    feedAlarm: nil, devices: [])
+    feedAlarm: nil, devices: [], medications: [], medicationDoses: [])
 
   public var unit: VolumeUnit { baby?.unit ?? .ml }
   public var babyName: String {
@@ -169,6 +173,11 @@ public enum SnapshotBuilder {
     let feedAlarm = try FeedAlarm.find(baby.id).fetchOne(db)
     let devices = try DeviceToken.where { $0.babyID.eq(baby.id) }.order { $0.ownerName.asc() }.fetchAll(db)
 
+    let medications = try Medication.where { $0.babyID.eq(baby.id) }.order { $0.createdAt.asc() }.fetchAll(db)
+    let doseSince = now.addingTimeInterval(-14 * 86_400)
+    let medicationDoses = try MedicationDose.where { $0.babyID.eq(baby.id) && $0.takenAt.gte(doseSince) }
+      .order { $0.takenAt.desc() }.fetchAll(db)
+
     return NestedSnapshot(
       baby: baby,
       me: me,
@@ -190,7 +199,9 @@ public enum SnapshotBuilder {
       todayWet: today.wet,
       todayDirty: today.dirty,
       feedAlarm: feedAlarm,
-      devices: devices
+      devices: devices,
+      medications: medications,
+      medicationDoses: medicationDoses
     )
   }
 }
