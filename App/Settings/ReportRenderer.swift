@@ -8,19 +8,26 @@ import SwiftUI
 enum ReportRenderer {
   static let pageSize = CGSize(width: 612, height: 792)
 
-  static func render(baby: Baby, history: History, notes: [BabyNote], days: Int, now: Date = Date()) throws -> URL {
-    let stats = DailyStatsBuilder.build(history: history, days: days, now: now)
+  static func render(
+    baby: Baby, history: History, notes: [BabyNote], questions: [Question] = [], days: Int, now: Date = Date()
+  ) throws -> URL {
+    // Start at the birth, not at the range: no rows of zeros for days before she was born.
+    let stats = DailyStatsBuilder.trimmed(
+      DailyStatsBuilder.build(history: history, days: days, now: now), birth: baby.birthDate)
     let start = stats.first?.day ?? now
     let stools = history.diapers
       .filter { $0.stoolColor != nil && $0.occurredAt >= start }
       .sorted { $0.occurredAt > $1.occurredAt }
     let reportNotes = notes.filter { $0.occurredAt >= start }.sorted { $0.occurredAt > $1.occurredAt }
 
-    let pages: [AnyView] = [
-      AnyView(SummaryPage(baby: baby, stats: stats, history: history, now: now)),
-      AnyView(DayClockPage(baby: baby, history: history, days: days, now: now)),
-      AnyView(LogPage(baby: baby, stools: stools, notes: reportNotes)),
+    var pages: [AnyView] = [
+      AnyView(SummaryPage(baby: baby, stats: stats, history: history, now: now))
     ]
+    if !questions.isEmpty {
+      pages.append(AnyView(QuestionsPage(baby: baby, questions: questions)))
+    }
+    pages.append(AnyView(DayClockPage(baby: baby, history: history, days: stats.count, now: now)))
+    pages.append(AnyView(LogPage(baby: baby, stools: stools, notes: reportNotes)))
 
     let name = "\(baby.name.isEmpty ? "Baby" : baby.name) report \(now.formatted(.iso8601.year().month().day())).pdf"
     let url = FileManager.default.temporaryDirectory.appendingPathComponent(name)
@@ -91,7 +98,7 @@ private struct SummaryPage: View {
           Text("Bottle")
           Text("Nursing")
           Text("Sleep")
-          Text("Longest")
+          Text("Longest sleep")
           Text("Wet")
           Text("Dirty")
         }
@@ -104,19 +111,43 @@ private struct SummaryPage: View {
             Text("\(day.feedCount)")
             Text(day.bottleMl > 0 ? Volume.format(ml: day.bottleMl, unit: baby.unit) : "–")
             Text(day.nursingLeft + day.nursingRight > 0 ? Durations.format(day.nursingLeft + day.nursingRight) : "–")
-            Text(Durations.format(day.sleepTotal))
-            Text(Durations.format(day.longestSleep))
+            Text(duration(day.sleepTotal))
+            Text(duration(day.longestSleep))
             Text("\(day.wetCount)")
             Text("\(day.dirtyCount)")
           }
           .font(.caption.monospacedDigit())
         }
+        if let average = DailyStatsBuilder.averages(stats, birth: baby.birthDate) {
+          Divider()
+          GridRow {
+            Text("Average").gridColumnAlignment(.leading)
+            Text(average.feeds.formatted(.number.precision(.fractionLength(1))))
+            Text(average.bottleMl > 0 ? Volume.format(ml: average.bottleMl, unit: baby.unit) : "–")
+            Text(duration(average.nursing))
+            Text(duration(average.sleep))
+            Text("")
+            Text(average.wet.formatted(.number.precision(.fractionLength(1))))
+            Text(average.dirty.formatted(.number.precision(.fractionLength(1))))
+          }
+          .font(.caption.monospacedDigit().weight(.semibold))
+        }
+      }
+      if let average = DailyStatsBuilder.averages(stats, birth: baby.birthDate) {
+        Text("Average is per whole day over \(average.days) days, leaving out today and the day of birth.")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
       }
       let totals = RollingTotals.compute(history: history, since: now.addingTimeInterval(-86_400), now: now)
       Text("Last 24 h: \(totals.feeds) feeds, \(Volume.format(ml: totals.bottleMl, unit: baby.unit)) by bottle, \(Durations.format(totals.nursing)) nursing, \(Durations.format(totals.sleep)) sleep, \(totals.wet) wet, \(totals.dirty) dirty.")
         .font(.footnote)
     }
   }
+}
+
+/// "–" instead of "0 s" for days with nothing.
+private func duration(_ seconds: TimeInterval) -> String {
+  seconds > 0 ? Durations.format(seconds) : "–"
 }
 
 private struct DayClockPage: View {
@@ -129,7 +160,53 @@ private struct DayClockPage: View {
     PageFrame(baby: baby, title: "Day clock") {
       Text("Each row is one day, midnight to midnight. Bars are sleep; dots are feeds (purple nursing, blue bottle); diamonds are diapers.")
         .font(.footnote)
-      DayClockChart(history: history, days: min(days, 30), now: now)
+      // Fewer days get taller rows, so the chart uses the page instead of hugging the top.
+      DayClockChart(history: history, days: min(days, 30), now: now, rowHeight: min(46, 560 / CGFloat(max(1, min(days, 30)))))
+    }
+  }
+}
+
+/// What to ask, with room to write the answer by hand, and what was answered before.
+private struct QuestionsPage: View {
+  let baby: Baby
+  let questions: [Question]
+
+  private var open: [Question] { questions.filter { !$0.isDone } }
+  private var answered: [Question] { questions.filter(\.isDone) }
+
+  var body: some View {
+    PageFrame(baby: baby, title: "Questions for the doctor") {
+      if !open.isEmpty {
+        Text("To ask").font(.headline)
+        ForEach(open.prefix(9)) { question in
+          HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "square").font(.callout)
+            VStack(alignment: .leading, spacing: 10) {
+              Text(RichText(stored: question.body).attributed()).font(.callout)
+              Rectangle().fill(Color.black.opacity(0.18)).frame(height: 0.5)
+            }
+          }
+        }
+        if open.count > 9 {
+          Text("and \(open.count - 9) more in the app").font(.caption).foregroundStyle(.secondary)
+        }
+      }
+      if !answered.isEmpty {
+        Divider()
+        Text("Already answered").font(.headline)
+        ForEach(answered.prefix(6)) { question in
+          VStack(alignment: .leading, spacing: 2) {
+            Text(RichText(stored: question.body).attributed()).font(.caption.weight(.semibold))
+            let answer = RichText(stored: question.answer)
+            if !answer.isEmpty {
+              Text(answer.attributed()).font(.caption).foregroundStyle(.secondary)
+            }
+          }
+        }
+        if answered.count > 6 {
+          Text("and \(answered.count - 6) more in the app").font(.caption).foregroundStyle(.secondary)
+        }
+      }
     }
   }
 }

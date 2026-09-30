@@ -274,7 +274,8 @@ struct SettingsView: View {
           if case .note(let note) = entry { return note }
           return nil
         }
-      reportURL = try ReportRenderer.render(baby: baby, history: history, notes: notes, days: reportDays)
+      reportURL = try ReportRenderer.render(
+        baby: baby, history: history, notes: notes, questions: try model.store.questions(), days: reportDays)
     } catch {
       model.errorMessage = "Couldn't create the report: \(error.localizedDescription)"
     }

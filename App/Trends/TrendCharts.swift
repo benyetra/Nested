@@ -19,6 +19,7 @@ struct DayClockChart: View {
   let history: History
   let days: Int
   var now = Date()
+  var rowHeight: CGFloat = 18
 
   private struct Block: Identifiable {
     let id = UUID()
@@ -107,7 +108,7 @@ struct DayClockChart: View {
       }
     }
     .chartYScale(domain: dayStarts.map(dayLabel))
-    .frame(height: max(120, CGFloat(days) * 18))
+    .frame(height: max(120, CGFloat(days) * rowHeight))
     .accessibilityLabel("Day clock for the last \(days) days: sleep blocks, feeds and diapers across each 24 hours.")
   }
 }

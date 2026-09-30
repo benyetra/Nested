@@ -100,6 +100,7 @@ public protocol EventStore: Sendable {
   func addQuestion(_ body: RichText) throws -> Question
   /// Saves new text and/or an answer. A non-empty answer checks the question off.
   func updateQuestion(id: UUID, body: RichText, answer: RichText) throws
+  func questions() throws -> [Question]
   func setQuestionDone(id: UUID, done: Bool) throws
   func deleteQuestion(id: UUID) throws
   /// Puts a deleted question back (undo).

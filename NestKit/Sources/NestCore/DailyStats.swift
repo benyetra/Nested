@@ -171,3 +171,54 @@ public struct StashInventory: Hashable, Sendable {
     return StashInventory(fridgeMl: fridge, freezerMl: freezer)
   }
 }
+
+
+/// Averages over whole days, for the report footer.
+public struct DayAverages: Hashable, Sendable {
+  public var days: Int
+  public var feeds: Double
+  public var bottleMl: Double
+  public var nursing: TimeInterval
+  public var sleep: TimeInterval
+  public var wet: Double
+  public var dirty: Double
+}
+
+extension DailyStatsBuilder {
+  static func isEmpty(_ day: DayStats) -> Bool {
+    day.feedCount == 0 && day.sleepTotal == 0 && day.wetCount == 0 && day.dirtyCount == 0
+  }
+
+  /// Drops the days before the baby was born (or, with no birth date, the empty days before the
+  /// first entry) so a report doesn't open with rows of zeros. Always keeps at least today.
+  public static func trimmed(_ stats: [DayStats], birth: Date?, calendar: Calendar = .current) -> [DayStats] {
+    guard !stats.isEmpty else { return stats }
+    let first: Int?
+    if let birth {
+      let birthDay = calendar.startOfDay(for: birth)
+      first = stats.firstIndex { $0.day >= birthDay }
+    } else {
+      first = stats.firstIndex { !isEmpty($0) }
+    }
+    return Array(stats[(first ?? stats.count - 1)...])
+  }
+
+  /// Average per day over whole days only: today is still in progress and the birth day is
+  /// partial, so neither counts. Nil until there are two whole days.
+  public static func averages(_ stats: [DayStats], birth: Date?, calendar: Calendar = .current) -> DayAverages? {
+    var whole = Array(stats.dropLast())
+    if let birth, let first = whole.first, calendar.isDate(first.day, inSameDayAs: birth) {
+      whole.removeFirst()
+    }
+    guard whole.count >= 2 else { return nil }
+    let n = Double(whole.count)
+    return DayAverages(
+      days: whole.count,
+      feeds: Double(whole.map(\.feedCount).reduce(0, +)) / n,
+      bottleMl: whole.map(\.bottleMl).reduce(0, +) / n,
+      nursing: whole.map { $0.nursingLeft + $0.nursingRight }.reduce(0, +) / n,
+      sleep: whole.map(\.sleepTotal).reduce(0, +) / n,
+      wet: Double(whole.map(\.wetCount).reduce(0, +)) / n,
+      dirty: Double(whole.map(\.dirtyCount).reduce(0, +)) / n)
+  }
+}

@@ -270,3 +270,47 @@ struct AnswerTests {
     #expect(Answers.feedSummary(bottle(t(1), 90), unit: .ml) == "90 ml formula")
   }
 }
+
+
+@Suite("Report day ranges")
+struct ReportRangeTests {
+  private func days(_ counts: [(feeds: Int, wet: Int)]) -> [DayStats] {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "UTC")!
+    let start = cal.date(from: DateComponents(year: 2026, month: 9, day: 20))!
+    return counts.enumerated().map { offset, c in
+      var day = DayStats(day: cal.date(byAdding: .day, value: offset, to: start)!)
+      day.feedCount = c.feeds
+      day.wetCount = c.wet
+      return day
+    }
+  }
+
+  private var utc: Calendar {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "UTC")!
+    return cal
+  }
+
+  @Test("Days before birth are dropped; with no birth date, leading empty days are")
+  func trimming() {
+    // Sep 20…Sep 29; born on Sep 25.
+    let stats = days([(0, 0), (0, 0), (0, 0), (0, 0), (0, 0), (1, 2), (7, 3), (11, 1), (8, 1), (8, 2)])
+    let birth = utc.date(from: DateComponents(year: 2026, month: 9, day: 25, hour: 14))!
+    #expect(DailyStatsBuilder.trimmed(stats, birth: birth, calendar: utc).count == 5)
+    #expect(DailyStatsBuilder.trimmed(stats, birth: nil, calendar: utc).count == 5)
+    #expect(DailyStatsBuilder.trimmed(days([(0, 0), (0, 0)]), birth: nil, calendar: utc).count == 1)
+    #expect(DailyStatsBuilder.trimmed([], birth: nil, calendar: utc).isEmpty)
+  }
+
+  @Test("Averages skip today and the partial birth day")
+  func averages() throws {
+    let stats = days([(1, 2), (7, 3), (11, 1), (8, 1), (8, 2)])  // Sep 20…24; born Sep 20
+    let birth = utc.date(from: DateComponents(year: 2026, month: 9, day: 20, hour: 9))!
+    let avg = try #require(DailyStatsBuilder.averages(stats, birth: birth, calendar: utc))
+    #expect(avg.days == 3)  // Sep 21, 22, 23
+    let expectedFeeds: Double = 26.0 / 3.0
+    #expect(abs(avg.feeds - expectedFeeds) < 0.0001)
+    #expect(DailyStatsBuilder.averages(Array(stats.prefix(2)), birth: birth, calendar: utc) == nil)
+  }
+}
