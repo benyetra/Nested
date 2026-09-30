@@ -15,7 +15,7 @@ struct LockScreenWidget: Widget {
         .containerBackground(.clear, for: .widget)
     }
     .configurationDisplayName("Last fed")
-    .description("Time since the last feed, side and awake time. Tap to log.")
+    .description("Time since the last feed, the next side and awake time. Tap to start nursing.")
     .supportedFamilies([.accessoryCircular, .accessoryRectangular, .accessoryInline])
   }
 }
@@ -27,13 +27,13 @@ private struct LockScreenView: View {
   var body: some View {
     Group {
       switch family {
-      case .accessoryCircular: FeedRingView(snapshot: entry.snapshot)
+      case .accessoryCircular: FeedRingView(snapshot: entry.snapshot, now: entry.date)
       case .accessoryInline: StatusInlineView(snapshot: entry.snapshot)
       default: StatusRectangularView(snapshot: entry.snapshot)
       }
     }
-    // Tap opens the matching log sheet.
-    .widgetURL(NestedLink.log(entry.snapshot.lastFeed?.isNursing == true ? .nursing : .bottle))
+    // Nursing is the main feed, so a tap opens it (the bottle is a button away in the app).
+    .widgetURL(NestedLink.log(.nursing))
   }
 }
 
@@ -67,22 +67,26 @@ private struct HomeWidgetView: View {
     }
   }
 
+  private var timeStyle: (Date) -> String { { $0.formatted(date: .omitted, time: .shortened) } }
+  private var lastFeedKind: EventKind { snapshot.lastFeed?.eventKind ?? .nursing }
+
+  // Nursing is how she's mainly fed, so it leads: the last-fed tile says how, the biggest
+  // button is Nurse on the next side, and the bottle is the smaller supplement button.
+
   private var small: some View {
-    VStack(alignment: .leading, spacing: 6) {
-      tile(.bottle, "Last fed", date: snapshot.lastFeed?.startedAt)
-      Spacer(minLength: 0)
-      if let prediction = snapshot.feedPrediction {
-        VStack(alignment: .leading, spacing: 0) {
-          Text("Next feed").font(.caption2).foregroundStyle(.secondary)
-          Text(
-            prediction.phase(at: entry.date) == .upcoming
-              ? "~\(prediction.expected.formatted(date: .omitted, time: .shortened))"
-              : (prediction.phase(at: entry.date) == .due ? "Due now" : "Overdue")
-          )
-          .font(.status(.title3))
-          .monospacedDigit()
-        }
+    VStack(alignment: .leading, spacing: 4) {
+      if let nursing = snapshot.activeNursing {
+        nursingTile(nursing, big: true)
+      } else {
+        lastFedTile(big: true)
       }
+      Spacer(minLength: 0)
+      if snapshot.activeNursing == nil, let prediction = snapshot.feedPrediction {
+        Text(prediction.shortLabel(now: entry.date, timeStyle: timeStyle))
+          .font(.caption2.weight(.medium))
+          .foregroundStyle(.secondary)
+      }
+      nurseButton(prominent: true)
     }
     .frame(maxWidth: .infinity, alignment: .leading)
     .widgetURL(NestedLink.now)
@@ -91,7 +95,11 @@ private struct HomeWidgetView: View {
   private var medium: some View {
     VStack(spacing: 10) {
       HStack(alignment: .top) {
-        tile(.bottle, "Last fed", date: snapshot.lastFeed?.startedAt)
+        if let nursing = snapshot.activeNursing {
+          nursingTile(nursing, big: false)
+        } else {
+          lastFedTile(big: false)
+        }
         if let sleep = snapshot.activeSleep {
           tile(.sleep, "Asleep", date: sleep.startedAt)
         } else {
@@ -99,8 +107,13 @@ private struct HomeWidgetView: View {
         }
         tile(.diaper, "Diaper", date: snapshot.lastDiaper?.occurredAt)
       }
-      HStack(spacing: 8) {
-        IntentButton(intent: LogBottleIntent(), title: "Bottle", symbol: "waterbottle.fill", kind: .bottle)
+      HStack(spacing: 6) {
+        nurseButton(prominent: true)
+        if snapshot.activeNursing != nil {
+          IntentButton(intent: SwitchSideIntent(), title: "Switch", symbol: "arrow.left.arrow.right", kind: .nursing)
+        } else {
+          IntentButton(intent: LogBottleIntent(), title: "Bottle", symbol: "waterbottle.fill", kind: .bottle)
+        }
         IntentButton(intent: LogDiaperIntent(type: .wet), title: "Wet", symbol: "drop.fill", kind: .diaper)
         IntentButton(intent: LogDiaperIntent(type: .dirty), title: "Dirty", symbol: "circle.fill", kind: .diaper)
         if snapshot.activeSleep != nil {
@@ -113,14 +126,18 @@ private struct HomeWidgetView: View {
   }
 
   private var large: some View {
-    VStack(alignment: .leading, spacing: 12) {
+    let split = snapshot.feedSplit(since: Calendar.current.startOfDay(for: entry.date))
+    return VStack(alignment: .leading, spacing: 12) {
       medium
       Divider()
       Text("Today").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
       DayStrip(history: snapshot.history, day: entry.date)
         .frame(height: 26)
       HStack {
-        count("\(snapshot.todayFeeds)", "feeds", .bottle)
+        count("\(split.nursed)", "nursed", .nursing)
+        count(
+          split.bottles > 0 ? Volume.format(ml: split.bottleMl, unit: snapshot.unit) : "0",
+          split.bottles == 1 ? "1 bottle" : "\(split.bottles) bottles", .bottle)
         count("\(snapshot.todayWet)", "wet", .diaper)
         count("\(snapshot.todayDirty)", "dirty", .diaper)
         count(Durations.compact(snapshot.totals24h.sleep), "sleep/24h", .sleep)
@@ -128,14 +145,80 @@ private struct HomeWidgetView: View {
       if let prediction = snapshot.feedPrediction {
         Text(
           prediction.phase(at: entry.date) == .upcoming
-            ? "Next feed ~\(prediction.expected.formatted(date: .omitted, time: .shortened)) (\(prediction.earliest.formatted(date: .omitted, time: .shortened))–\(prediction.latest.formatted(date: .omitted, time: .shortened)))"
-            : prediction.shortLabel(now: entry.date, timeStyle: { $0.formatted(date: .omitted, time: .shortened) })
+            ? "Next feed ~\(timeStyle(prediction.expected)) (\(timeStyle(prediction.earliest))–\(timeStyle(prediction.latest)))"
+            : prediction.shortLabel(now: entry.date, timeStyle: timeStyle)
         )
-          .font(.caption)
-          .foregroundStyle(.secondary)
+        .font(.caption)
+        .foregroundStyle(.secondary)
       }
       Spacer(minLength: 0)
     }
+  }
+
+  /// Last feed, with how (side and time, or bottle amount). The icon and colour follow the type.
+  private func lastFedTile(big: Bool) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Label("Last fed", systemImage: lastFeedKind.symbol)
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(lastFeedKind.color)
+      if let feed = snapshot.lastFeed {
+        Text(feed.startedAt, style: .relative)
+          .font(.status(big ? .title3 : .subheadline))
+          .monospacedDigit()
+          .lineLimit(1)
+          .minimumScaleFactor(0.7)
+        Text(Answers.feedSummary(feed, unit: snapshot.unit))
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+          .lineLimit(1)
+          .minimumScaleFactor(0.8)
+      } else {
+        Text("–").font(.status(.subheadline))
+      }
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  private func nursingTile(_ nursing: ActiveNursing, big: Bool) -> some View {
+    VStack(alignment: .leading, spacing: 2) {
+      Label("Nursing \(nursing.currentSide.initial)", systemImage: "heart.fill")
+        .font(.caption2.weight(.semibold))
+        .foregroundStyle(EventKind.nursing.color)
+      Text(timerInterval: nursing.effectiveStart(now: entry.date)...Date.distantFuture, countsDown: false)
+        .font(.status(big ? .title2 : .subheadline))
+        .monospacedDigit()
+        .lineLimit(1)
+      Text(nursing.isPaused ? "Paused" : "Running")
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+    }
+    .frame(maxWidth: .infinity, alignment: .leading)
+  }
+
+  /// Start nursing on the next side, or stop the running session.
+  @ViewBuilder
+  private func nurseButton(prominent: Bool) -> some View {
+    if snapshot.activeNursing != nil {
+      Button(intent: StopNursingIntent()) {
+        nurseLabel("Stop", "stop.fill")
+      }
+      .buttonStyle(.plain)
+    } else {
+      Button(intent: StartNursingIntent(side: nil)) {
+        nurseLabel("Nurse \(snapshot.nextSide.initial)", "heart.fill")
+      }
+      .buttonStyle(.plain)
+    }
+  }
+
+  private func nurseLabel(_ title: String, _ symbol: String) -> some View {
+    VStack(spacing: 2) {
+      Image(systemName: symbol).font(.body.weight(.semibold))
+      Text(title).font(.caption2.weight(.bold))
+    }
+    .foregroundStyle(.white)
+    .frame(maxWidth: .infinity, minHeight: 44)
+    .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(EventKind.nursing.color.gradient))
   }
 
   private func tile(_ kind: EventKind, _ title: String, date: Date?) -> some View {
@@ -159,7 +242,8 @@ private struct HomeWidgetView: View {
   private func count(_ value: String, _ label: String, _ kind: EventKind) -> some View {
     VStack(spacing: 0) {
       Text(value).font(.status(.headline)).foregroundStyle(kind.color).monospacedDigit()
-      Text(label).font(.caption2).foregroundStyle(.secondary)
+        .lineLimit(1).minimumScaleFactor(0.7)
+      Text(label).font(.caption2).foregroundStyle(.secondary).lineLimit(1).minimumScaleFactor(0.7)
     }
     .frame(maxWidth: .infinity)
   }

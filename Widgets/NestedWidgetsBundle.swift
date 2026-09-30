@@ -7,11 +7,11 @@ struct NestedWidgetsBundle: WidgetBundle {
     LockScreenWidget()
     HomeWidget()
     TimerLiveActivity()
+    NursingToggleControl()
     LogBottleControl()
     LogWetControl()
     LogDirtyControl()
     NapToggleControl()
-    NursingToggleControl()
     WakeUsControl()
     StopTimerControl()
   }

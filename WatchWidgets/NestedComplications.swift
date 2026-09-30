@@ -32,11 +32,11 @@ private struct ComplicationView: View {
   var body: some View {
     switch family {
     case .accessoryCircular:
-      FeedRingView(snapshot: entry.snapshot)
+      FeedRingView(snapshot: entry.snapshot, now: entry.date)
     case .accessoryInline:
       StatusInlineView(snapshot: entry.snapshot)
     case .accessoryCorner:
-      Image(systemName: entry.snapshot.lastFeed?.isNursing == true ? "heart.fill" : "waterbottle.fill")
+      Image(systemName: entry.snapshot.lastFeedSymbol)
         .font(.title2)
         .widgetLabel {
           if let feed = entry.snapshot.lastFeed {

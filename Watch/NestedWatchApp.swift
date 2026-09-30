@@ -104,7 +104,7 @@ struct WatchRootView: View {
         } icon: {
           Image(systemName: feed.isNursing ? "heart.fill" : "waterbottle.fill")
         }
-        .foregroundStyle(EventKind.bottle.color)
+        .foregroundStyle(feed.isNursing ? EventKind.nursing.color : EventKind.bottle.color)
       }
       if let sleep = snapshot.activeSleep {
         Label { Text("Asleep \(Text(sleep.startedAt, style: .relative))") } icon: { Image(systemName: "moon.zzz.fill") }

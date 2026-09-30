@@ -15,7 +15,7 @@ struct LogBottleControl: ControlWidget {
       }
     }
     .displayName("Log Bottle")
-    .description("Logs the usual bottle amount and contents.")
+    .description("Logs the usual supplemental bottle, in its usual amount and contents.")
   }
 }
 
