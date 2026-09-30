@@ -203,13 +203,19 @@ extension DailyStatsBuilder {
     return Array(stats[(first ?? stats.count - 1)...])
   }
 
-  /// Average per day over whole days only: today is still in progress and the birth day is
-  /// partial, so neither counts. Nil until there are two whole days.
-  public static func averages(_ stats: [DayStats], birth: Date?, calendar: Calendar = .current) -> DayAverages? {
+  /// Days that are over and complete: today is still in progress and the birth day is partial,
+  /// so averages should leave both out.
+  public static func wholeDays(_ stats: [DayStats], birth: Date?, calendar: Calendar = .current) -> [DayStats] {
     var whole = Array(stats.dropLast())
     if let birth, let first = whole.first, calendar.isDate(first.day, inSameDayAs: birth) {
       whole.removeFirst()
     }
+    return whole
+  }
+
+  /// Average per day over whole days only. Nil until there are two whole days.
+  public static func averages(_ stats: [DayStats], birth: Date?, calendar: Calendar = .current) -> DayAverages? {
+    let whole = wholeDays(stats, birth: birth, calendar: calendar)
     guard whole.count >= 2 else { return nil }
     let n = Double(whole.count)
     return DayAverages(
@@ -220,5 +226,24 @@ extension DailyStatsBuilder {
       sleep: whole.map(\.sleepTotal).reduce(0, +) / n,
       wet: Double(whole.map(\.wetCount).reduce(0, +)) / n,
       dirty: Double(whole.map(\.dirtyCount).reduce(0, +)) / n)
+  }
+}
+
+
+/// General newborn reference points, for context on a chart. Not medical advice.
+public enum NewbornGuide {
+  /// Day of life for a calendar day; the birth day is day 1.
+  public static func dayOfLife(_ day: Date, birth: Date, calendar: Calendar = .current) -> Int {
+    AgeMath.days(from: birth, to: day, calendar: calendar) + 1
+  }
+
+  /// The usual minimum of wet diapers on a day of life: one more each day through day 4, then
+  /// six or more from day 5.
+  public static func minimumWetDiapers(dayOfLife: Int) -> Int {
+    switch dayOfLife {
+    case ..<1: 0
+    case 1...4: dayOfLife
+    default: 6
+    }
   }
 }

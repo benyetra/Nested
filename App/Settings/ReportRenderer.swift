@@ -161,7 +161,7 @@ private struct DayClockPage: View {
       Text("Each row is one day, midnight to midnight. Bars are sleep; dots are feeds (purple nursing, blue bottle); diamonds are diapers.")
         .font(.footnote)
       // Fewer days get taller rows, so the chart uses the page instead of hugging the top.
-      DayClockChart(history: history, days: min(days, 30), now: now, rowHeight: min(46, 560 / CGFloat(max(1, min(days, 30)))))
+      DayClockChart(history: history, days: min(days, 30), now: now, rowHeight: min(46, 560 / CGFloat(max(1, min(days, 30)))), showsLegend: false)
     }
   }
 }

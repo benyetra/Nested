@@ -12,14 +12,34 @@ private func dayLabel(_ date: Date) -> String {
   date.formatted(.dateTime.month(.abbreviated).day())
 }
 
+extension View {
+  /// Day labels under a per-day chart: a narrow weekday for up to two weeks, a date every fifth
+  /// day beyond that.
+  func dayAxis(days: Int) -> some View {
+    chartXAxis {
+      AxisMarks(values: .stride(by: .day, count: days > 14 ? 5 : 1)) { _ in
+        AxisValueLabel(
+          format: days > 14 ? .dateTime.month(.abbreviated).day() : .dateTime.weekday(.narrow),
+          centered: days <= 14)
+      }
+    }
+  }
+}
+
 // MARK: - Day clock
+
+/// "Tue 29": short and unique per day, so it can label a row.
+private func rowLabel(_ date: Date) -> String {
+  date.formatted(.dateTime.weekday(.abbreviated).day())
+}
 
 /// One horizontal 24 h bar per day, most recent at the bottom: sleep blocks, feeds and diapers.
 struct DayClockChart: View {
   let history: History
   let days: Int
   var now = Date()
-  var rowHeight: CGFloat = 18
+  var rowHeight: CGFloat = 28
+  var showsLegend = true
 
   private struct Block: Identifiable {
     let id = UUID()
@@ -79,78 +99,133 @@ struct DayClockChart: View {
   }
 
   var body: some View {
-    Chart {
-      ForEach(blocks) { block in
-        BarMark(
-          xStart: .value("Start", block.startMinute),
-          xEnd: .value("End", block.endMinute),
-          y: .value("Day", dayLabel(block.day))
-        )
-        .foregroundStyle(EventKind.sleep.color.opacity(0.75))
-        .cornerRadius(3)
+    VStack(alignment: .leading, spacing: 10) {
+      Chart {
+        ForEach(blocks) { block in
+          BarMark(
+            xStart: .value("Start", block.startMinute),
+            xEnd: .value("End", block.endMinute),
+            y: .value("Day", rowLabel(block.day)),
+            height: .ratio(0.62)
+          )
+          .foregroundStyle(EventKind.sleep.color.opacity(0.35))
+          .cornerRadius(4)
+        }
+        ForEach(marks) { mark in
+          PointMark(x: .value("Time", mark.minute), y: .value("Day", rowLabel(mark.day)))
+            .symbol(mark.kind == .diaper ? .diamond : .circle)
+            .symbolSize(mark.kind == .diaper ? 34 : 60)
+            .foregroundStyle(mark.kind.color)
+        }
       }
-      ForEach(marks) { mark in
-        PointMark(x: .value("Time", mark.minute), y: .value("Day", dayLabel(mark.day)))
-          .symbol(mark.kind == .diaper ? .diamond : .circle)
-          .symbolSize(mark.kind == .diaper ? 22 : 30)
-          .foregroundStyle(mark.kind.color)
-      }
-    }
-    .chartXScale(domain: 0...1440)
-    .chartXAxis {
-      AxisMarks(values: [0, 360, 720, 1080, 1440]) { value in
-        AxisGridLine()
-        AxisValueLabel {
-          if let minute = value.as(Double.self) {
-            Text(["12a", "6a", "12p", "6p", "12a"][Int(minute / 360)])
+      .chartXScale(domain: 0...1440)
+      .chartXAxis {
+        AxisMarks(values: [0, 360, 720, 1080, 1440]) { value in
+          AxisGridLine()
+          AxisValueLabel {
+            if let minute = value.as(Double.self) {
+              Text(["12a", "6a", "12p", "6p", "12a"][Int(minute / 360)])
+            }
           }
         }
       }
+      // Labels sit beside the rows, not on top of the marks.
+      .chartYAxis {
+        AxisMarks(position: .leading) { _ in
+          AxisValueLabel().font(.caption2)
+        }
+      }
+      .chartYScale(domain: dayStarts.map(rowLabel))
+      .frame(height: max(120, CGFloat(days) * rowHeight) + 24)
+      .accessibilityLabel("Day clock for the last \(days) days: sleep blocks, feeds and diapers across each 24 hours.")
+
+      if showsLegend {
+        HStack(spacing: 14) {
+          legend(RoundedRectangle(cornerRadius: 2).fill(EventKind.sleep.color.opacity(0.35)).frame(width: 14, height: 8), "Sleep")
+          legend(Circle().fill(EventKind.nursing.color).frame(width: 8, height: 8), "Nursing")
+          legend(Circle().fill(EventKind.bottle.color).frame(width: 8, height: 8), "Bottle")
+          legend(Image(systemName: "diamond.fill").font(.system(size: 8)).foregroundStyle(EventKind.diaper.color), "Diaper")
+        }
+        .font(.caption2)
+        .foregroundStyle(.secondary)
+      }
     }
-    .chartYScale(domain: dayStarts.map(dayLabel))
-    .frame(height: max(120, CGFloat(days) * rowHeight))
-    .accessibilityLabel("Day clock for the last \(days) days: sleep blocks, feeds and diapers across each 24 hours.")
+  }
+
+  private func legend<Symbol: View>(_ symbol: Symbol, _ title: String) -> some View {
+    HStack(spacing: 4) {
+      symbol
+      Text(title)
+    }
+    .accessibilityElement(children: .combine)
   }
 }
 
 // MARK: - Feeding
 
+/// Feeds per day, split into nursing and bottle so the top-ups are easy to see, with the
+/// average across whole days as a dashed line.
 struct FeedingChart: View {
   let days: [DayStats]
   let unit: VolumeUnit
+  /// Feeds per day over whole days, or nil until there are two.
+  var average: Double?
   @State private var selected: Date?
+
+  private func nursingFeeds(_ day: DayStats) -> Int { max(0, day.feedCount - day.bottleCount) }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 8) {
       Chart {
         ForEach(days) { day in
-          BarMark(x: .value("Day", day.day, unit: .day), y: .value("Feeds", day.feedCount))
-            .foregroundStyle(EventKind.nursing.color.gradient)
+          BarMark(x: .value("Day", day.day, unit: .day), y: .value("Feeds", nursingFeeds(day)))
+            .foregroundStyle(by: .value("Type", "Nursing"))
+          BarMark(x: .value("Day", day.day, unit: .day), y: .value("Feeds", day.bottleCount))
+            .foregroundStyle(by: .value("Type", "Bottle"))
+        }
+        if let average {
+          RuleMark(y: .value("Average", average))
+            .lineStyle(StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+            .foregroundStyle(.secondary)
+            .annotation(position: .top, alignment: .leading, spacing: 2) {
+              Text("avg \(average.formatted(.number.precision(.fractionLength(1))))")
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+            }
         }
         if let selected, let day = days.first(where: { Calendar.current.isDate($0.day, inSameDayAs: selected) }) {
           RuleMark(x: .value("Selected", day.day, unit: .day))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.secondary.opacity(0.5))
             .annotation(position: .top, overflowResolution: .init(x: .fit, y: .disabled)) {
-              Callout(title: dayLabel(day.day), lines: [
-                "\(day.feedCount) feeds",
-                "\(Volume.format(ml: day.bottleMl, unit: unit)) by bottle",
-              ])
+              Callout(
+                title: dayLabel(day.day),
+                lines: [
+                  "\(nursingFeeds(day)) nursing · \(day.bottleCount) bottle",
+                  "Nursed \(Durations.format(day.nursingLeft + day.nursingRight))",
+                ] + (day.bottleMl > 0 ? ["\(Volume.format(ml: day.bottleMl, unit: unit)) by bottle"] : []))
             }
         }
       }
+      .chartForegroundStyleScale(["Nursing": EventKind.nursing.color, "Bottle": EventKind.bottle.color])
+      .chartLegend(position: .bottom, alignment: .leading)
+      .dayAxis(days: days.count)
       .chartXSelection(value: $selected)
-      .frame(height: 150)
-      .accessibilityLabel("Feeds per day")
+      .frame(height: 170)
+      .accessibilityLabel("Nursing and bottle feeds per day")
 
       if days.contains(where: { $0.bottleMl > 0 }) {
+        Text("Top-up volume").font(.caption.weight(.semibold)).foregroundStyle(EventKind.bottle.color)
         Chart(days) { day in
-          LineMark(x: .value("Day", day.day, unit: .day), y: .value("Bottle", Volume.displayValue(ml: day.bottleMl, unit: unit)))
-            .foregroundStyle(EventKind.bottle.color)
-            .interpolationMethod(.monotone)
-          PointMark(x: .value("Day", day.day, unit: .day), y: .value("Bottle", Volume.displayValue(ml: day.bottleMl, unit: unit)))
-            .foregroundStyle(EventKind.bottle.color)
+          BarMark(x: .value("Day", day.day, unit: .day), y: .value("Bottle", Volume.displayValue(ml: day.bottleMl, unit: unit)))
+            .foregroundStyle(EventKind.bottle.color.gradient)
+            .annotation(position: .top) {
+              if day.bottleMl > 0, days.count <= 10 {
+                Text(Volume.format(ml: day.bottleMl, unit: unit)).font(.system(size: 9)).foregroundStyle(.secondary)
+              }
+            }
         }
-        .chartYAxisLabel("Bottle total (\(unit.title))")
+        .chartYAxisLabel(unit.title)
+        .dayAxis(days: days.count)
         .frame(height: 110)
         .accessibilityLabel("Total bottle volume per day")
       }
@@ -234,9 +309,20 @@ struct SleepChart: View {
 
 // MARK: - Diapers
 
+/// Wet and dirty side by side, so wet can be read against the usual minimum for her age
+/// (the dashed line, shown for the first two weeks).
 struct DiaperChart: View {
   let days: [DayStats]
+  var birth: Date?
   @State private var selected: Date?
+
+  private func minimum(_ day: DayStats) -> Int? {
+    guard let birth else { return nil }
+    let dayOfLife = NewbornGuide.dayOfLife(day.day, birth: birth)
+    return dayOfLife <= 14 ? NewbornGuide.minimumWetDiapers(dayOfLife: dayOfLife) : nil
+  }
+
+  private var showsGuide: Bool { days.contains { minimum($0) != nil } }
 
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
@@ -244,21 +330,47 @@ struct DiaperChart: View {
         ForEach(days) { day in
           BarMark(x: .value("Day", day.day, unit: .day), y: .value("Count", day.wetCount))
             .foregroundStyle(by: .value("Type", "Wet"))
+            .position(by: .value("Type", "Wet"))
           BarMark(x: .value("Day", day.day, unit: .day), y: .value("Count", day.dirtyCount))
             .foregroundStyle(by: .value("Type", "Dirty"))
+            .position(by: .value("Type", "Dirty"))
+        }
+        if showsGuide {
+          ForEach(days) { day in
+            if let minimum = minimum(day) {
+              LineMark(
+                x: .value("Day", day.day, unit: .day), y: .value("Usual minimum", minimum),
+                series: .value("Guide", "Usual minimum wet")
+              )
+              .interpolationMethod(.stepCenter)
+              .lineStyle(StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
+              .foregroundStyle(.secondary)
+            }
+          }
         }
         if let selected, let day = days.first(where: { Calendar.current.isDate($0.day, inSameDayAs: selected) }) {
           RuleMark(x: .value("Selected", day.day, unit: .day))
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.secondary.opacity(0.5))
             .annotation(position: .top, overflowResolution: .init(x: .fit, y: .disabled)) {
-              Callout(title: dayLabel(day.day), lines: ["\(day.wetCount) wet", "\(day.dirtyCount) dirty"])
+              Callout(
+                title: dayLabel(day.day),
+                lines: ["\(day.wetCount) wet", "\(day.dirtyCount) dirty"]
+                  + (minimum(day).map { ["usual minimum \($0) wet"] } ?? []))
             }
         }
       }
       .chartForegroundStyleScale(["Wet": EventKind.diaper.color.opacity(0.55), "Dirty": EventKind.diaper.color])
+      .chartLegend(position: .bottom, alignment: .leading)
+      .dayAxis(days: days.count)
       .chartXSelection(value: $selected)
-      .frame(height: 150)
+      .frame(height: 160)
       .accessibilityLabel("Wet and dirty diapers per day")
+
+      if showsGuide {
+        Text("Dashed line: the usual minimum wet diapers for her age, a general guide and not medical advice.")
+          .font(.caption2)
+          .foregroundStyle(.secondary)
+      }
 
       StoolStrip(days: days)
     }

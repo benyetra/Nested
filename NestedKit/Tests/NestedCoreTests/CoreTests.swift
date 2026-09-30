@@ -314,3 +314,51 @@ struct ReportRangeTests {
     #expect(DailyStatsBuilder.averages(Array(stats.prefix(2)), birth: birth, calendar: utc) == nil)
   }
 }
+
+@Suite("Trend summaries")
+struct TrendSummaryTests {
+  private var utc: Calendar {
+    var cal = Calendar(identifier: .gregorian)
+    cal.timeZone = TimeZone(identifier: "UTC")!
+    return cal
+  }
+
+  @Test("Whole days leave out today and the birth day")
+  func wholeDays() {
+    let start = utc.date(from: DateComponents(year: 2026, month: 9, day: 25))!
+    let stats = (0..<5).map { DayStats(day: utc.date(byAdding: .day, value: $0, to: start)!) }
+    let birth = utc.date(from: DateComponents(year: 2026, month: 9, day: 25, hour: 13))!
+    let whole = DailyStatsBuilder.wholeDays(stats, birth: birth, calendar: utc)
+    #expect(whole.count == 3)
+    #expect(whole.first?.day == utc.date(byAdding: .day, value: 1, to: start))
+  }
+
+  @Test("The wet-diaper guide rises through day 4, then stays at six")
+  func guide() {
+    #expect([1, 2, 3, 4, 5, 6, 12].map { NewbornGuide.minimumWetDiapers(dayOfLife: $0) } == [1, 2, 3, 4, 6, 6, 6])
+    let birth = utc.date(from: DateComponents(year: 2026, month: 9, day: 25, hour: 13))!
+    let day3 = utc.date(from: DateComponents(year: 2026, month: 9, day: 27))!
+    #expect(NewbornGuide.dayOfLife(birth, birth: birth, calendar: utc) == 1)
+    #expect(NewbornGuide.dayOfLife(day3, birth: birth, calendar: utc) == 3)
+  }
+
+  @Test("The weekly digest speaks of nursing first and bottles as the top-up")
+  func digest() throws {
+    var a = DayStats(day: Date(timeIntervalSince1970: 0))
+    a.feedCount = 9
+    a.bottleCount = 1
+    a.bottleMl = 35
+    a.nursingLeft = 40 * 60
+    a.nursingRight = 60 * 60
+    var b = a
+    b.day = Date(timeIntervalSince1970: 86_400)
+    let digest = try #require(WeeklyDigest.compute(days: [a, b], stretch: nil))
+    #expect(digest.nursingPerDay == 8 && digest.bottlesPerDay == 1)
+    let facts = digest.facts(babyName: "Maddie", unit: .ml)
+    #expect(facts[0].contains("9.0 times"))
+    #expect(facts[1].contains("Most feeds were nursing"))
+    #expect(facts[2].contains("top-up"))
+    let none = try #require(WeeklyDigest.compute(days: [DayStats(day: Date())], stretch: nil))
+    #expect(!none.facts(babyName: "Maddie", unit: .ml).joined().contains("top-up"))
+  }
+}

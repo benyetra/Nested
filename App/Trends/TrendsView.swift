@@ -12,8 +12,18 @@ struct TrendsView: View {
   private var unit: VolumeUnit { data.baby?.unit ?? .ml }
   private var babyName: String { data.baby?.name.isEmpty == false ? data.baby!.name : "Baby" }
 
+  private var summaryTitle: String { days.count < 7 ? "So far" : "This week" }
+
+  private var birth: Date? { data.baby?.birthDate }
+
+  /// The chosen range, starting at her birth so charts never open with days before she was born.
   private var days: [DayStats] {
-    DailyStatsBuilder.build(history: data.history, days: range.days, now: Date())
+    DailyStatsBuilder.trimmed(
+      DailyStatsBuilder.build(history: data.history, days: range.days, now: Date()), birth: birth)
+  }
+
+  private var averageFeeds: Double? {
+    DailyStatsBuilder.averages(days, birth: birth)?.feeds
   }
 
   private var nightStretch: NightStretchTrend? {
@@ -32,7 +42,7 @@ struct TrendsView: View {
           if let summary {
             Card(tint: EventKind.nursing.color) {
               VStack(alignment: .leading, spacing: 6) {
-                Label("This week", systemImage: "sparkles").font(.headline)
+                Label(summaryTitle, systemImage: "sparkles").font(.headline)
                 Text(summary).font(.callout)
               }
             }
@@ -46,16 +56,16 @@ struct TrendsView: View {
           }
 
           section("Day clock", kind: .sleep) {
-            DayClockChart(history: data.history, days: max(range.days, 1))
+            DayClockChart(history: data.history, days: max(days.count, 1))
           }
-          section("Feeding", kind: .bottle, footer: medianBottleText) {
-            FeedingChart(days: days, unit: unit)
+          section("Feeding", kind: .nursing, footer: feedingFooter) {
+            FeedingChart(days: days, unit: unit, average: averageFeeds)
           }
           if days.contains(where: { $0.nursingLeft + $0.nursingRight > 0 }) {
             section("Nursing balance", kind: .nursing) { NursingBalanceChart(days: days) }
           }
           section("Sleep", kind: .sleep) { SleepChart(days: days) }
-          section("Diapers", kind: .diaper) { DiaperChart(days: days) }
+          section("Diapers", kind: .diaper) { DiaperChart(days: days, birth: birth) }
           if days.contains(where: { $0.pumpMl > 0 }) || !data.history.pumps.isEmpty {
             section("Pumping", kind: .pump) {
               PumpChart(days: days, unit: unit, stash: StashInventory.compute(history: data.history, now: Date()))
@@ -69,6 +79,19 @@ struct TrendsView: View {
       .navigationTitle("Trends")
       .task(id: data.history) { await refreshSummary() }
     }
+  }
+
+  /// "82% of feeds were nursing · median bottle 35 ml"
+  private var feedingFooter: String? {
+    let feeds = days.map(\.feedCount).reduce(0, +)
+    let bottles = days.map(\.bottleCount).reduce(0, +)
+    var parts: [String] = []
+    if feeds > 0 {
+      let share = Int((Double(feeds - bottles) / Double(feeds) * 100).rounded())
+      parts.append("\(share)% of feeds were nursing")
+    }
+    if let median = medianBottleText { parts.append(median) }
+    return parts.isEmpty ? nil : parts.joined(separator: " · ")
   }
 
   private var medianBottleText: String? {
@@ -98,7 +121,12 @@ struct TrendsView: View {
   }
 
   private func refreshSummary() async {
-    let week = DailyStatsBuilder.build(history: data.history, days: 7, now: Date())
+    // Whole days since her birth: zeros from before she was born, or a day still in progress,
+    // would pull every average down.
+    let recent = DailyStatsBuilder.trimmed(
+      DailyStatsBuilder.build(history: data.history, days: 8, now: Date()), birth: birth)
+    let whole = DailyStatsBuilder.wholeDays(recent, birth: birth)
+    let week = whole.isEmpty ? recent : whole
     guard week.contains(where: { $0.feedCount > 0 }),
       let digest = WeeklyDigest.compute(days: week, stretch: nightStretch)
     else {
