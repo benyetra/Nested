@@ -253,6 +253,21 @@ public struct Question: Identifiable, Hashable, Sendable, Codable {
   public var editedAt: Date
 }
 
+/// A small square JPEG for the baby or a parent. Kept in its own table so a photo change
+/// doesn't rewrite (and re-sync) the `Baby` record. `subject` is `Avatar.babySubject` or
+/// `Avatar.parentSubject(name)`; a parent's photo follows their name to the partner's phone.
+@Table("avatars")
+public struct Avatar: Identifiable, Hashable, Sendable, Codable {
+  public let id: UUID
+  public var babyID: Baby.ID
+  public var subject = ""
+  public var photo = Data()
+  public var updatedAt: Date
+
+  public static let babySubject = "baby"
+  public static func parentSubject(_ name: String) -> String { "parent:\(name)" }
+}
+
 /// One row per installed device: Live Activity push tokens for the Worker, plus the
 /// device's alarm-armed state for the bedtime confirmation.
 @Table("deviceTokens")
@@ -562,6 +577,25 @@ public enum NestSchema {
       try db.execute(
         sql: """
           CREATE INDEX IF NOT EXISTS "idx_questions_babyID" ON "questions"("babyID")
+          """)
+    }
+
+    migrator.registerMigration("v3: avatars") { db in
+      try #sql(
+        """
+        CREATE TABLE "avatars" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "babyID" TEXT NOT NULL REFERENCES "babies"("id") ON DELETE CASCADE,
+          "subject" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "photo" BLOB NOT NULL ON CONFLICT REPLACE DEFAULT x'',
+          "updatedAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now'))
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try db.execute(
+        sql: """
+          CREATE INDEX IF NOT EXISTS "idx_avatars_babyID" ON "avatars"("babyID")
           """)
     }
 

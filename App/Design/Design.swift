@@ -172,10 +172,8 @@ struct ParentBadge: View {
   let name: String
 
   var body: some View {
-    Text(DevicePrefs.initial(for: name))
-      .font(.caption2.weight(.bold))
-      .frame(width: 22, height: 22)
-      .background(Circle().fill(Color(.tertiarySystemFill)))
+    AvatarView(subject: Avatar.parentSubject(name), name: name, size: 22, tint: .secondary)
+      .accessibilityElement(children: .ignore)
       .accessibilityLabel(name.isEmpty ? "Unknown parent" : "Logged by \(name)")
   }
 }

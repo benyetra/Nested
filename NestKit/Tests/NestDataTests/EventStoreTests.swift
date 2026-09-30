@@ -373,3 +373,26 @@ struct QuestionTests {
     #expect(RichText().stored == "")
   }
 }
+
+
+@Suite("Avatars", .serialized)
+struct AvatarTests {
+  @Test("Set, replace and remove a photo per subject")
+  func lifecycle() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+
+    try store.setAvatar(subject: Avatar.babySubject, photo: Data([1, 2, 3]))
+    try store.setAvatar(subject: Avatar.parentSubject("Yvette"), photo: Data([9]))
+    clock.advance(minutes: 1)
+    try store.setAvatar(subject: Avatar.babySubject, photo: Data([4, 5]))
+
+    let all = try store.avatars()
+    #expect(all.count == 2)
+    #expect(all.first { $0.subject == Avatar.babySubject }?.photo == Data([4, 5]))
+
+    try store.setAvatar(subject: Avatar.babySubject, photo: nil)
+    #expect(try store.avatars().map(\.subject) == [Avatar.parentSubject("Yvette")])
+  }
+}

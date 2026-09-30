@@ -46,7 +46,11 @@ struct SettingsView: View {
         }
       }
       Section("Baby") {
-        TextField("Name", text: bind(baby, \.name))
+        HStack(spacing: 14) {
+          AvatarEditor(subject: Avatar.babySubject, name: baby.name, size: 64, tint: EventKind.bottle.color)
+          TextField("Name", text: bind(baby, \.name))
+            .font(.title3.weight(.semibold))
+        }
         DatePicker(
           "Birth date",
           selection: Binding(get: { baby.birthDate ?? Date() }, set: { date in save(baby) { $0.birthDate = date } }),
@@ -57,14 +61,20 @@ struct SettingsView: View {
       }
 
       Section {
-        TextField("Your name", text: $ownerName)
-          .textContentType(.givenName)
-          .onSubmit { commitOwner() }
-          .onChange(of: ownerName) { _, _ in commitOwner() }
+        HStack(spacing: 14) {
+          AvatarEditor(
+            subject: Avatar.parentSubject(ownerName), name: ownerName, size: 56, tint: EventKind.nursing.color
+          )
+          .disabled(ownerName.trimmingCharacters(in: .whitespaces).isEmpty)
+          TextField("Your name", text: $ownerName)
+            .textContentType(.givenName)
+            .onSubmit { commitOwner() }
+            .onChange(of: ownerName) { _, _ in commitOwner() }
+        }
       } header: {
         Text("This phone")
       } footer: {
-        Text("Shown as the initial on everything you log.")
+        Text("Your photo (or initial) shows on everything you log. Enter your name first, then add a photo.")
       }
 
       Section("Display") {

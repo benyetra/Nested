@@ -271,3 +271,12 @@ public struct QuestionsRequest: FetchKeyRequest {
     return open + done
   }
 }
+
+/// Photos for the baby and parents. Newest wins if a subject somehow has two.
+public struct AvatarsRequest: FetchKeyRequest {
+  public init() {}
+  public func fetch(_ db: Database) throws -> [Avatar] {
+    guard let baby = try LiveEventStore.currentBaby(db) else { return [] }
+    return try Avatar.where { $0.babyID.eq(baby.id) }.order { $0.updatedAt.desc() }.fetchAll(db)
+  }
+}

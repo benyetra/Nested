@@ -105,6 +105,10 @@ public protocol EventStore: Sendable {
   /// Puts a deleted question back (undo).
   func restoreQuestion(_ question: Question) throws
 
+  // Photos
+  /// Sets (or, with nil, removes) the photo for `Avatar.babySubject` / `Avatar.parentSubject(name)`.
+  func setAvatar(subject: String, photo: Data?) throws
+
   // Devices
   func updateDevice(_ update: (inout DeviceToken) -> Void) throws
 
@@ -618,6 +622,35 @@ public struct LiveEventStore: EventStore {
     try database.read { db in
       try EntryRevision.where { $0.entryID.eq(entryID) }.order { $0.editedAt.desc() }.fetchAll(db)
     }
+  }
+
+  // MARK: Photos
+
+  public func setAvatar(subject: String, photo: Data?) throws {
+    let stamp = now()
+    try database.write { db in
+      let baby = try requireBaby(db)
+      let existing = try Avatar.where { $0.babyID.eq(baby.id) && $0.subject.eq(subject) }.fetchAll(db)
+      guard let photo, !photo.isEmpty else {
+        for avatar in existing { try Avatar.find(avatar.id).delete().execute(db) }
+        return
+      }
+      if var avatar = existing.first {
+        avatar.photo = photo
+        avatar.updatedAt = stamp
+        try Avatar.update(avatar).execute(db)
+        // A simultaneous first upload from two phones can leave twins; keep one.
+        for extra in existing.dropFirst() { try Avatar.find(extra.id).delete().execute(db) }
+      } else {
+        try Avatar.insert {
+          Avatar(id: UUID(), babyID: baby.id, subject: subject, photo: photo, updatedAt: stamp)
+        }.execute(db)
+      }
+    }
+  }
+
+  public func avatars() throws -> [Avatar] {
+    try database.read { db in try AvatarsRequest().fetch(db) }
   }
 
   // MARK: Questions

@@ -20,6 +20,7 @@
 		23B871EEE879BDA76AFFE09D /* NestIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98634FC7A338576601FF335C /* NestIntents.swift */; };
 		2482B91145A1BDE78F8800DD /* NestShortcuts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72B27B5855E2DE137996202A /* NestShortcuts.swift */; };
 		278C8707FE69CA946F6B1C76 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE4D058ACA4F2EDF5BBD834D /* SharedStore.swift */; };
+		31D4F06DE9A0C5825191C02B /* AvatarModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 326381AE896EAD54835ECBDF /* AvatarModel.swift */; };
 		3217FE93AD615AB333C2B91C /* BackdatePicker.swift in Sources */ = {isa = PBXBuildFile; fileRef = C79558BAF6D22404B2CB51E9 /* BackdatePicker.swift */; };
 		360AC313C45F6A52030A9549 /* NestIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98634FC7A338576601FF335C /* NestIntents.swift */; };
 		368D3EEFAA11E01F431E40C7 /* NestIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98634FC7A338576601FF335C /* NestIntents.swift */; };
@@ -29,6 +30,7 @@
 		49103C70B8E98DA223C19ADC /* Controls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F24FDE3A38A0D8EFD9E45EA /* Controls.swift */; };
 		4AEE996F4456473072FCA8B0 /* IntentEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = F76126193CEE235D4080DEBE /* IntentEnums.swift */; };
 		56DE89C97385C17B20FEED0F /* NestApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5E00220E905CC67F1063AF5 /* NestApp.swift */; };
+		5C00951953EB2CF2C44EAB3E /* AvatarCropView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 922A89642498BC36826F4669 /* AvatarCropView.swift */; };
 		5C118D0DE6231A2B8C6D2418 /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5653F4AA41CA54E419D98AB3 /* OnboardingView.swift */; };
 		5F78ECF267703E44811A5985 /* StatusProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = B3CB48DF8186020B17903D3A /* StatusProvider.swift */; };
 		66C80F777DD4AB80154D9D07 /* TrendCharts.swift in Sources */ = {isa = PBXBuildFile; fileRef = 19CE45834F7EF43BEF790E70 /* TrendCharts.swift */; };
@@ -41,6 +43,7 @@
 		78AAA1F45D21DCBA025D4223 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 7E8B4B1B6A0FC01107EB3677 /* Assets.xcassets */; };
 		79C3436B8D655C70BAD78159 /* RichTextBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A1C9A599D56B164A0D01B13 /* RichTextBridge.swift */; };
 		7FA1411A6A884BC879CFC589 /* NestTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 11793A024806F0BF46598856 /* NestTimerAttributes.swift */; };
+		81433FC0217D65232AB6D24E /* AvatarEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = B5B88DA9C576FBD0EBA66C32 /* AvatarEditor.swift */; };
 		81F906E11A9CD8C07FADF021 /* NestCore in Frameworks */ = {isa = PBXBuildFile; productRef = 7AFAA1539A9404346C235EA8 /* NestCore */; };
 		86685DA7B20E9C86FE7B25FC /* TimerLiveActivity.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD6B1104F4EC65828FCAC57D /* TimerLiveActivity.swift */; };
 		8F181ED6DD0921C4EA0F641C /* NestWidgets.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 4A00EA2C48A6F162A9D8D03A /* NestWidgets.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
@@ -151,6 +154,7 @@
 		1A1C9A599D56B164A0D01B13 /* RichTextBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RichTextBridge.swift; sourceTree = "<group>"; };
 		29421CBBF34844616D20978D /* Design.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Design.swift; sourceTree = "<group>"; };
 		31B2616F14F6BC2EA5F93475 /* NestTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NestTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		326381AE896EAD54835ECBDF /* AvatarModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarModel.swift; sourceTree = "<group>"; };
 		34844F7A6BDAA3899E442E22 /* SummaryService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SummaryService.swift; sourceTree = "<group>"; };
 		34E3BB3F6A96E7DBD064BA39 /* IntentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentTests.swift; sourceTree = "<group>"; };
 		38083A8491452D7E3F42BA77 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
@@ -175,6 +179,7 @@
 		7CCA58D6457CBCBAD777B0C8 /* NestWidgetsBundle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestWidgetsBundle.swift; sourceTree = "<group>"; };
 		7E8B4B1B6A0FC01107EB3677 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		84CE6EC5898CC13F3B48B74C /* NestWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NestWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		922A89642498BC36826F4669 /* AvatarCropView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarCropView.swift; sourceTree = "<group>"; };
 		98634FC7A338576601FF335C /* NestIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestIntents.swift; sourceTree = "<group>"; };
 		987CE514B43DF436FA2B7CD4 /* QuestionEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionEditor.swift; sourceTree = "<group>"; };
 		A1683DF1598F2648F6D06844 /* EventStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EventStyle.swift; sourceTree = "<group>"; };
@@ -183,6 +188,7 @@
 		AD6B1104F4EC65828FCAC57D /* TimerLiveActivity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimerLiveActivity.swift; sourceTree = "<group>"; };
 		AD9927D10FEBAE84DED66225 /* LiveActivityService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiveActivityService.swift; sourceTree = "<group>"; };
 		B3CB48DF8186020B17903D3A /* StatusProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StatusProvider.swift; sourceTree = "<group>"; };
+		B5B88DA9C576FBD0EBA66C32 /* AvatarEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AvatarEditor.swift; sourceTree = "<group>"; };
 		B5E00220E905CC67F1063AF5 /* NestApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestApp.swift; sourceTree = "<group>"; };
 		B741C86996438277C74BD446 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		BF5D23732A733E5ECF18AAFE /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
@@ -291,6 +297,7 @@
 		1BA2F8542BC6247D51B65D90 /* App */ = {
 			isa = PBXGroup;
 			children = (
+				693322DDC6742DD257355A70 /* Avatars */,
 				27716056434424D094B4B3E8 /* Design */,
 				650A2C612476127FE5E1E13B /* Intents */,
 				C76CA488CA10F89853991E36 /* Log */,
@@ -387,6 +394,16 @@
 				72B27B5855E2DE137996202A /* NestShortcuts.swift */,
 			);
 			path = Intents;
+			sourceTree = "<group>";
+		};
+		693322DDC6742DD257355A70 /* Avatars */ = {
+			isa = PBXGroup;
+			children = (
+				922A89642498BC36826F4669 /* AvatarCropView.swift */,
+				B5B88DA9C576FBD0EBA66C32 /* AvatarEditor.swift */,
+				326381AE896EAD54835ECBDF /* AvatarModel.swift */,
+			);
+			path = Avatars;
 			sourceTree = "<group>";
 		};
 		88C3BECA9AE7E9967135E70F /* WatchWidgets */ = {
@@ -696,6 +713,9 @@
 			files = (
 				FE6A3FF87861DAC4DC050A93 /* AlarmCard.swift in Sources */,
 				A878A9366FF1A731B764D533 /* AppModel.swift in Sources */,
+				5C00951953EB2CF2C44EAB3E /* AvatarCropView.swift in Sources */,
+				81433FC0217D65232AB6D24E /* AvatarEditor.swift in Sources */,
+				31D4F06DE9A0C5825191C02B /* AvatarModel.swift in Sources */,
 				3217FE93AD615AB333C2B91C /* BackdatePicker.swift in Sources */,
 				EB670FFE30DF87DC6C7A4385 /* Design.swift in Sources */,
 				BF8331122851257B5FEB5505 /* EntryEditor.swift in Sources */,

@@ -32,6 +32,12 @@ struct NowView: View {
       // colliding with the status bar.
       .navigationTitle(snapshot.babyName)
       .navigationSubtitle(ageText)
+      .toolbar {
+        ToolbarItem(placement: .topBarLeading) {
+          AvatarView(
+            subject: Avatar.babySubject, name: snapshot.babyName, size: 34, tint: EventKind.bottle.color)
+        }
+      }
     }
   }
 
