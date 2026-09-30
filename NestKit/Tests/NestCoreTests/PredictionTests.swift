@@ -160,3 +160,32 @@ struct SmallPredictionTests {
     #expect(trend.summary == "Longest stretch 4 h, up 1 h this week")
   }
 }
+
+
+@Suite("Feed prediction phases")
+struct FeedPhaseTests {
+  private let prediction = FeedPrediction(
+    expected: Date(timeIntervalSince1970: 10_000), earliest: Date(timeIntervalSince1970: 9_000),
+    latest: Date(timeIntervalSince1970: 11_000), basedOnCount: 12, isNight: false)
+  private let style: (Date) -> String = { "t\(Int($0.timeIntervalSince1970))" }
+
+  @Test("Upcoming, due and overdue never show a passed time")
+  func phases() {
+    #expect(prediction.phase(at: Date(timeIntervalSince1970: 8_000)) == .upcoming)
+    #expect(prediction.phase(at: Date(timeIntervalSince1970: 9_000)) == .due)
+    #expect(prediction.phase(at: Date(timeIntervalSince1970: 11_000)) == .due)
+    #expect(prediction.phase(at: Date(timeIntervalSince1970: 11_001)) == .overdue)
+
+    #expect(prediction.shortLabel(now: Date(timeIntervalSince1970: 8_000), timeStyle: style) == "Next feed ~t10000")
+    #expect(prediction.shortLabel(now: Date(timeIntervalSince1970: 10_000), timeStyle: style) == "Feed due now")
+    #expect(prediction.shortLabel(now: Date(timeIntervalSince1970: 20_000), timeStyle: style) == "Feed overdue")
+  }
+
+  @Test("Spoken answers say overdue instead of a past time")
+  func spoken() {
+    let late = Answers.nextFeed(prediction, babyName: "Maddie", now: Date(timeIntervalSince1970: 20_000), timeStyle: style)
+    #expect(late.contains("overdue") && !late.hasPrefix("Next feed around"))
+    let early = Answers.nextFeed(prediction, babyName: "Maddie", now: Date(timeIntervalSince1970: 1), timeStyle: style)
+    #expect(early.hasPrefix("Next feed around t10000"))
+  }
+}

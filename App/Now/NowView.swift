@@ -203,20 +203,38 @@ struct NextFeedCard: View {
 
   private let tint = EventKind.bottle.color
 
+  private var phase: FeedPhase { prediction?.phase(at: now) ?? .upcoming }
+
   var body: some View {
     HStack(alignment: .center, spacing: 16) {
       VStack(alignment: .leading, spacing: 4) {
-        Text("Next feed")
+        Text(phase == .overdue ? "Feed overdue" : "Next feed")
           .font(.subheadline.weight(.semibold))
           .opacity(0.85)
         if let prediction {
-          Text("~\(prediction.expected.formatted(date: .omitted, time: .shortened))")
-            .font(.system(.largeTitle, design: .rounded).weight(.bold))
-            .tracking(-0.5)
-            .monospacedDigit()
-          Text("\(prediction.earliest.formatted(date: .omitted, time: .shortened))–\(prediction.latest.formatted(date: .omitted, time: .shortened)) · \(prediction.basis)")
-            .font(.footnote)
-            .opacity(0.85)
+          switch phase {
+          case .upcoming:
+            Text("~\(prediction.expected.formatted(date: .omitted, time: .shortened))")
+              .font(.system(.largeTitle, design: .rounded).weight(.bold))
+              .tracking(-0.5)
+              .monospacedDigit()
+            Text("\(prediction.earliest.formatted(date: .omitted, time: .shortened))–\(prediction.latest.formatted(date: .omitted, time: .shortened)) · \(prediction.basis)")
+              .font(.footnote)
+              .opacity(0.85)
+          case .due:
+            Text("Due now")
+              .font(.system(.largeTitle, design: .rounded).weight(.bold))
+            Text("Expected around \(prediction.expected.formatted(date: .omitted, time: .shortened)) · \(prediction.basis)")
+              .font(.footnote)
+              .opacity(0.85)
+          case .overdue:
+            Text("\(Text(prediction.latest, style: .relative)) late")
+              .font(.system(.title, design: .rounded).weight(.bold))
+              .monospacedDigit()
+            Text("Expected around \(prediction.expected.formatted(date: .omitted, time: .shortened)) · \(prediction.basis)")
+              .font(.footnote)
+              .opacity(0.85)
+          }
         } else {
           Text("Log a few feeds and Nest will learn her rhythm.")
             .font(.headline)
@@ -226,20 +244,7 @@ struct NextFeedCard: View {
         }
       }
       Spacer(minLength: 0)
-      if let prediction, let lastFeed, prediction.expected > lastFeed {
-        ProgressView(timerInterval: lastFeed...prediction.expected, countsDown: false) {
-          EmptyView()
-        } currentValueLabel: {
-          Image(systemName: "waterbottle.fill")
-        }
-        .progressViewStyle(.circular)
-        .tint(.white)
-        .frame(width: 56, height: 56)
-      } else {
-        Image(systemName: "sparkles")
-          .font(.title)
-          .opacity(0.9)
-      }
+      trailing
     }
     .foregroundStyle(.white)
     .padding(18)
@@ -250,6 +255,37 @@ struct NextFeedCard: View {
         .shadow(color: tint.opacity(0.35), radius: 16, y: 8)
     }
     .accessibilityElement(children: .combine)
+  }
+
+  @ViewBuilder
+  private var trailing: some View {
+    if let prediction, let lastFeed {
+      if phase == .upcoming, prediction.expected > lastFeed {
+        // Fills toward the expected time. Only while that time is still ahead: a finished
+        // timer ring renders as an endless spinner.
+        ProgressView(timerInterval: lastFeed...prediction.expected, countsDown: false) {
+          EmptyView()
+        } currentValueLabel: {
+          Image(systemName: "waterbottle.fill")
+        }
+        .progressViewStyle(.circular)
+        .tint(.white)
+        .frame(width: 56, height: 56)
+      } else {
+        // Due or late: a full, still ring.
+        ZStack {
+          Circle().stroke(.white.opacity(0.3), lineWidth: 5)
+          Circle().stroke(.white, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+          Image(systemName: "waterbottle.fill")
+        }
+        .frame(width: 56, height: 56)
+        .accessibilityHidden(true)
+      }
+    } else {
+      Image(systemName: "sparkles")
+        .font(.title)
+        .opacity(0.9)
+    }
   }
 }
 

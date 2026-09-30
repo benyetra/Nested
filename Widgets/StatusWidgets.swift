@@ -74,9 +74,13 @@ private struct HomeWidgetView: View {
       if let prediction = snapshot.feedPrediction {
         VStack(alignment: .leading, spacing: 0) {
           Text("Next feed").font(.caption2).foregroundStyle(.secondary)
-          Text("~\(prediction.expected.formatted(date: .omitted, time: .shortened))")
-            .font(.status(.title3))
-            .monospacedDigit()
+          Text(
+            prediction.phase(at: entry.date) == .upcoming
+              ? "~\(prediction.expected.formatted(date: .omitted, time: .shortened))"
+              : (prediction.phase(at: entry.date) == .due ? "Due now" : "Overdue")
+          )
+          .font(.status(.title3))
+          .monospacedDigit()
         }
       }
     }
@@ -122,7 +126,11 @@ private struct HomeWidgetView: View {
         count(Durations.compact(snapshot.totals24h.sleep), "sleep/24h", .sleep)
       }
       if let prediction = snapshot.feedPrediction {
-        Text("Next feed ~\(prediction.expected.formatted(date: .omitted, time: .shortened)) (\(prediction.earliest.formatted(date: .omitted, time: .shortened))–\(prediction.latest.formatted(date: .omitted, time: .shortened)))")
+        Text(
+          prediction.phase(at: entry.date) == .upcoming
+            ? "Next feed ~\(prediction.expected.formatted(date: .omitted, time: .shortened)) (\(prediction.earliest.formatted(date: .omitted, time: .shortened))–\(prediction.latest.formatted(date: .omitted, time: .shortened)))"
+            : prediction.shortLabel(now: entry.date, timeStyle: { $0.formatted(date: .omitted, time: .shortened) })
+        )
           .font(.caption)
           .foregroundStyle(.secondary)
       }

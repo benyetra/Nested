@@ -27,10 +27,19 @@ public enum Answers {
   public static func nextFeed(
     _ prediction: FeedPrediction?,
     babyName: String,
+    now: Date = Date(),
     timeStyle: (Date) -> String
   ) -> String {
     guard let prediction else {
       return "I need a few more feeds for \(babyName) before I can predict the next one."
+    }
+    switch prediction.phase(at: now) {
+    case .due:
+      return "\(babyName)'s next feed is due now. I expected it around \(timeStyle(prediction.expected)), \(prediction.basis)."
+    case .overdue:
+      return "\(babyName)'s next feed is overdue. I expected it around \(timeStyle(prediction.expected)), \(prediction.basis)."
+    case .upcoming:
+      break
     }
     return
       "Next feed around \(timeStyle(prediction.expected)), between \(timeStyle(prediction.earliest)) and \(timeStyle(prediction.latest)), \(prediction.basis)."

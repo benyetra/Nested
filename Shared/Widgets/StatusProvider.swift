@@ -26,6 +26,7 @@ struct StatusProvider: TimelineProvider {
     var dates: [Date] = [
       current.snapshot.feedPrediction?.earliest,
       current.snapshot.feedPrediction?.expected,
+      current.snapshot.feedPrediction?.latest,
       current.snapshot.napPrediction?.opensAt,
     ]
     .compactMap { $0 }

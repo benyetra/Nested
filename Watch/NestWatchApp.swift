@@ -114,7 +114,7 @@ struct WatchRootView: View {
           .foregroundStyle(EventKind.sleep.color)
       }
       if let prediction = snapshot.feedPrediction {
-        Text("Next ~\(prediction.expected.formatted(date: .omitted, time: .shortened))")
+        Text(prediction.shortLabel(now: Date(), timeStyle: { $0.formatted(date: .omitted, time: .shortened) }))
           .foregroundStyle(.secondary)
       }
     }

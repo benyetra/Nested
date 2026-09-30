@@ -36,6 +36,31 @@ public struct FeedPrediction: Hashable, Sendable {
   }
 }
 
+public enum FeedPhase: Sendable {
+  /// Before the window opens.
+  case upcoming
+  /// Inside the window: time to feed.
+  case due
+  /// Past the end of the window. The predicted time is history, so say "overdue" instead.
+  case overdue
+}
+
+extension FeedPrediction {
+  public func phase(at now: Date) -> FeedPhase {
+    if now < earliest { return .upcoming }
+    return now <= latest ? .due : .overdue
+  }
+
+  /// One line for widgets and the watch: never shows a time that has already passed.
+  public func shortLabel(now: Date, timeStyle: (Date) -> String) -> String {
+    switch phase(at: now) {
+    case .upcoming: "Next feed ~\(timeStyle(expected))"
+    case .due: "Feed due now"
+    case .overdue: "Feed overdue"
+    }
+  }
+}
+
 public enum FeedPredictor {
   /// Feeds that start within this long of the previous one are treated as one feed
   /// (top-ups, switching from breast to bottle) so they don't drag the median down.
