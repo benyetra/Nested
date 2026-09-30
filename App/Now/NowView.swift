@@ -261,22 +261,27 @@ struct NextFeedCard: View {
   private var trailing: some View {
     if let prediction, let lastFeed {
       if phase == .upcoming, prediction.expected > lastFeed {
-        // Fills toward the expected time. Only while that time is still ahead: a finished
-        // timer ring renders as an endless spinner.
-        ProgressView(timerInterval: lastFeed...prediction.expected, countsDown: false) {
-          EmptyView()
-        } currentValueLabel: {
-          Image(systemName: "waterbottle.fill")
+        // Drawn by hand: a circular ProgressView(timerInterval:) renders as a spinning activity
+        // indicator on iOS, not as a ring.
+        let total = prediction.expected.timeIntervalSince(lastFeed)
+        let progress = min(1, max(0, now.timeIntervalSince(lastFeed) / total))
+        ZStack {
+          Circle().stroke(.white.opacity(0.3), lineWidth: 5)
+          Circle()
+            .trim(from: 0, to: progress)
+            .stroke(.white, style: StrokeStyle(lineWidth: 5, lineCap: .round))
+            .rotationEffect(.degrees(-90))
+          Image(systemName: EventKind.nursing.symbol)
         }
-        .progressViewStyle(.circular)
-        .tint(.white)
         .frame(width: 56, height: 56)
+        .animation(Motion.standard, value: progress)
+        .accessibilityHidden(true)
       } else {
         // Due or late: a full, still ring.
         ZStack {
           Circle().stroke(.white.opacity(0.3), lineWidth: 5)
           Circle().stroke(.white, style: StrokeStyle(lineWidth: 5, lineCap: .round))
-          Image(systemName: "waterbottle.fill")
+          Image(systemName: EventKind.nursing.symbol)
         }
         .frame(width: 56, height: 56)
         .accessibilityHidden(true)

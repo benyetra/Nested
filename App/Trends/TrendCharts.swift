@@ -34,12 +34,17 @@ private func rowLabel(_ date: Date) -> String {
 }
 
 /// One horizontal 24 h bar per day, most recent at the bottom: sleep blocks, feeds and diapers.
+///
+/// Drawn by hand rather than with Charts: the day labels get their own column, so they can
+/// never sit on top of a mark.
 struct DayClockChart: View {
   let history: History
   let days: Int
   var now = Date()
-  var rowHeight: CGFloat = 28
+  var rowHeight: CGFloat = 30
   var showsLegend = true
+
+  private let labelWidth: CGFloat = 48
 
   private struct Block: Identifiable {
     let id = UUID()
@@ -99,49 +104,31 @@ struct DayClockChart: View {
   }
 
   var body: some View {
+    let blocksByDay = Dictionary(grouping: blocks, by: \.day)
+    let marksByDay = Dictionary(grouping: marks, by: \.day)
     VStack(alignment: .leading, spacing: 10) {
-      Chart {
-        ForEach(blocks) { block in
-          BarMark(
-            xStart: .value("Start", block.startMinute),
-            xEnd: .value("End", block.endMinute),
-            y: .value("Day", rowLabel(block.day)),
-            height: .ratio(0.62)
-          )
-          .foregroundStyle(EventKind.sleep.color.opacity(0.35))
-          .cornerRadius(4)
-        }
-        ForEach(marks) { mark in
-          PointMark(x: .value("Time", mark.minute), y: .value("Day", rowLabel(mark.day)))
-            .symbol(mark.kind == .diaper ? .diamond : .circle)
-            .symbolSize(mark.kind == .diaper ? 34 : 60)
-            .foregroundStyle(mark.kind.color)
-        }
-      }
-      .chartXScale(domain: 0...1440)
-      .chartXAxis {
-        AxisMarks(values: [0, 360, 720, 1080, 1440]) { value in
-          AxisGridLine()
-          AxisValueLabel {
-            if let minute = value.as(Double.self) {
-              Text(["12a", "6a", "12p", "6p", "12a"][Int(minute / 360)])
-            }
+      VStack(spacing: 0) {
+        ForEach(dayStarts, id: \.self) { day in
+          HStack(spacing: 6) {
+            Text(rowLabel(day))
+              .font(.caption2)
+              .foregroundStyle(.secondary)
+              .frame(width: labelWidth, alignment: .leading)
+            row(blocks: blocksByDay[day] ?? [], marks: marksByDay[day] ?? [])
           }
+          .frame(height: rowHeight)
+        }
+        HStack(spacing: 6) {
+          Color.clear.frame(width: labelWidth, height: 1)
+          axis
         }
       }
-      // Labels sit beside the rows, not on top of the marks.
-      .chartYAxis {
-        AxisMarks(position: .leading) { _ in
-          AxisValueLabel().font(.caption2)
-        }
-      }
-      .chartYScale(domain: dayStarts.map(rowLabel))
-      .frame(height: max(120, CGFloat(days) * rowHeight) + 24)
+      .accessibilityElement(children: .ignore)
       .accessibilityLabel("Day clock for the last \(days) days: sleep blocks, feeds and diapers across each 24 hours.")
 
       if showsLegend {
         HStack(spacing: 14) {
-          legend(RoundedRectangle(cornerRadius: 2).fill(EventKind.sleep.color.opacity(0.35)).frame(width: 14, height: 8), "Sleep")
+          legend(RoundedRectangle(cornerRadius: 2).fill(EventKind.sleep.color.opacity(0.45)).frame(width: 14, height: 8), "Sleep")
           legend(Circle().fill(EventKind.nursing.color).frame(width: 8, height: 8), "Nursing")
           legend(Circle().fill(EventKind.bottle.color).frame(width: 8, height: 8), "Bottle")
           legend(Image(systemName: "diamond.fill").font(.system(size: 8)).foregroundStyle(EventKind.diaper.color), "Diaper")
@@ -150,6 +137,58 @@ struct DayClockChart: View {
         .foregroundStyle(.secondary)
       }
     }
+  }
+
+  /// One day's strip: faint 6-hour guides, sleep blocks, then the marks on top.
+  private func row(blocks: [Block], marks: [Mark]) -> some View {
+    GeometryReader { proxy in
+      let width = proxy.size.width
+      let height = proxy.size.height
+      let x: (Double) -> CGFloat = { CGFloat($0 / 1440) * width }
+      ZStack(alignment: .topLeading) {
+        RoundedRectangle(cornerRadius: 5, style: .continuous)
+          .fill(Color.primary.opacity(0.05))
+        ForEach([6.0, 12.0, 18.0], id: \.self) { hour in
+          Rectangle()
+            .fill(Color.primary.opacity(0.10))
+            .frame(width: 0.5, height: height)
+            .offset(x: x(hour * 60))
+        }
+        ForEach(blocks) { block in
+          RoundedRectangle(cornerRadius: 3, style: .continuous)
+            .fill(EventKind.sleep.color.opacity(0.45))
+            .frame(width: max(3, x(block.endMinute) - x(block.startMinute)), height: height * 0.56)
+            .offset(x: x(block.startMinute), y: height * 0.22)
+        }
+        ForEach(marks) { mark in
+          Group {
+            if mark.kind == .diaper {
+              Image(systemName: "diamond.fill").font(.system(size: 8))
+            } else {
+              Circle().frame(width: 9, height: 9)
+            }
+          }
+          .foregroundStyle(mark.kind.color)
+          .position(x: x(mark.minute), y: mark.kind == .diaper ? height * 0.8 : height * 0.36)
+        }
+      }
+    }
+    .frame(height: rowHeight - 4)
+  }
+
+  private var axis: some View {
+    GeometryReader { proxy in
+      let width = proxy.size.width
+      ZStack(alignment: .topLeading) {
+        ForEach(Array(["12a", "6a", "12p", "6p", "12a"].enumerated()), id: \.offset) { index, title in
+          Text(title)
+            .font(.caption2)
+            .foregroundStyle(.secondary)
+            .position(x: min(max(width * CGFloat(index) / 4, 10), width - 10), y: 9)
+        }
+      }
+    }
+    .frame(height: 18)
   }
 
   private func legend<Symbol: View>(_ symbol: Symbol, _ title: String) -> some View {
