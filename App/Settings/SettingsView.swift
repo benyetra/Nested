@@ -92,21 +92,7 @@ struct SettingsView: View {
         }
       }
 
-      Section {
-        Button {
-          share(baby)
-        } label: {
-          HStack {
-            Label("Share with your partner", systemImage: "person.2.fill")
-            if isSharing { Spacer(); ProgressView() }
-          }
-        }
-        .disabled(isSharing)
-      } header: {
-        Text("Sharing")
-      } footer: {
-        Text("Sends an iCloud invite. Once accepted, both phones log to the same record and see each other's entries within seconds. Everything stays in your iCloud.")
-      }
+      sharingSection(baby)
 
       alarmSection(baby)
       flagsSection(baby)
@@ -319,6 +305,85 @@ struct SettingsView: View {
   }
 
   // MARK: Sharing
+
+  private struct Partner: Identifiable {
+    let name: String
+    let lastSeen: Date
+    let alarmsOn: Bool
+    var id: String { name }
+  }
+
+  /// Everyone else who has joined: another parent's phone appears here once they accept the
+  /// invite and open the app, because each phone adds its own row to the shared list.
+  private var partners: [Partner] {
+    Dictionary(grouping: snapshot.otherDevices, by: \.ownerName)
+      .map { name, devices in
+        Partner(
+          name: name, lastSeen: devices.map(\.updatedAt).max() ?? .distantPast,
+          alarmsOn: devices.contains { $0.alarmAuthorized })
+      }
+      .sorted { $0.name < $1.name }
+  }
+
+  /// The invite button until a partner has joined; then who has joined instead.
+  @ViewBuilder
+  private func sharingSection(_ baby: Baby) -> some View {
+    if partners.isEmpty {
+      Section {
+        Button {
+          share(baby)
+        } label: {
+          HStack {
+            Label("Share with your partner", systemImage: "person.2.fill")
+            if isSharing { Spacer(); ProgressView() }
+          }
+        }
+        .disabled(isSharing)
+      } header: {
+        Text("Sharing")
+      } footer: {
+        Text("Sends an iCloud invite. Once accepted, both phones log to the same record and see each other's entries within seconds. Everything stays in your iCloud.")
+      }
+    } else {
+      Section {
+        ForEach(partners) { partner in
+          HStack(spacing: 12) {
+            AvatarView(
+              subject: Avatar.parentSubject(partner.name), name: partner.name, size: 44,
+              tint: EventKind.nursing.color)
+            VStack(alignment: .leading, spacing: 2) {
+              Text(partner.name.isEmpty ? "Your partner" : partner.name).font(.headline)
+              Text("Sharing \(baby.name.isEmpty ? "the baby" : baby.name) · active \(Text(partner.lastSeen, style: .relative)) ago")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+              if !partner.alarmsOn {
+                Label("Alarms are off on their phone", systemImage: "bell.slash")
+                  .font(.caption)
+                  .foregroundStyle(.orange)
+              }
+            }
+            Spacer()
+            Image(systemName: "checkmark.circle.fill").foregroundStyle(.green)
+              .accessibilityLabel("Joined")
+          }
+          .padding(.vertical, 2)
+        }
+        Button {
+          share(baby)
+        } label: {
+          HStack {
+            Label("Manage sharing…", systemImage: "person.crop.circle.badge.plus")
+            if isSharing { Spacer(); ProgressView() }
+          }
+        }
+        .disabled(isSharing)
+      } header: {
+        Text("Partner")
+      } footer: {
+        Text("You both log to the same record and see each other's entries within seconds. Everything stays in your iCloud.")
+      }
+    }
+  }
 
   private func share(_ baby: Baby) {
     isSharing = true
