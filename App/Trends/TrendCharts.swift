@@ -494,3 +494,50 @@ struct Callout: View {
     .shadow(radius: 2)
   }
 }
+
+// MARK: - Feed gaps and night/day sleep
+
+/// Longest time between feeds each day, with the day's average gap as a line.
+struct FeedGapChart: View {
+  let extras: [DayExtras]
+
+  var body: some View {
+    Chart {
+      ForEach(extras) { day in
+        BarMark(x: .value("Day", day.day, unit: .day), y: .value("Longest", day.longestFeedGap / 3600))
+          .foregroundStyle(EventKind.nursing.color.opacity(0.55))
+        LineMark(x: .value("Day", day.day, unit: .day), y: .value("Average", day.averageFeedGap / 3600))
+          .foregroundStyle(EventKind.nursing.color)
+          .interpolationMethod(.monotone)
+          .symbol(.circle)
+      }
+    }
+    .chartYAxisLabel("hours · bars longest, line average")
+    .dayAxis(days: extras.count)
+    .frame(height: 150)
+    .accessibilityLabel("Longest and average time between feeds per day")
+  }
+}
+
+/// Sleep per day split into the night window and daytime.
+struct NightDaySleepChart: View {
+  let extras: [DayExtras]
+
+  var body: some View {
+    Chart {
+      ForEach(extras) { day in
+        BarMark(x: .value("Day", day.day, unit: .day), y: .value("Hours", day.nightSleep / 3600))
+          .foregroundStyle(by: .value("When", "Night"))
+        BarMark(x: .value("Day", day.day, unit: .day), y: .value("Hours", day.daySleep / 3600))
+          .foregroundStyle(by: .value("When", "Day"))
+      }
+    }
+    .chartForegroundStyleScale([
+      "Night": EventKind.sleep.color, "Day": EventKind.sleep.color.opacity(0.4),
+    ])
+    .chartYAxisLabel("hours")
+    .dayAxis(days: extras.count)
+    .frame(height: 150)
+    .accessibilityLabel("Night and daytime sleep per day")
+  }
+}

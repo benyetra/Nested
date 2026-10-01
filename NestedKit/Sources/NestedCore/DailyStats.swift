@@ -185,7 +185,7 @@ public struct DayAverages: Hashable, Sendable {
 }
 
 extension DailyStatsBuilder {
-  static func isEmpty(_ day: DayStats) -> Bool {
+  public static func isEmpty(_ day: DayStats) -> Bool {
     day.feedCount == 0 && day.sleepTotal == 0 && day.wetCount == 0 && day.dirtyCount == 0
   }
 

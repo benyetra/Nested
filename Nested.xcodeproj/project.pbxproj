@@ -13,6 +13,7 @@
 		0720913BEA6C6A34C1A00481 /* IntentEnums.swift in Sources */ = {isa = PBXBuildFile; fileRef = E434350A0E2EEBAD1CD31714 /* IntentEnums.swift */; };
 		07999857D684483B8384F5C8 /* SharedStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = F81D6F5EE83517A82EE9D93B /* SharedStore.swift */; };
 		07AE9D98C54F62F8AF91244C /* NestedTimerAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FB228B66C21738503511E59 /* NestedTimerAttributes.swift */; };
+		19EB1CF02C26EF90DF485BFA /* InsightViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF3C7A78D7BC4D22DFB905CE /* InsightViews.swift */; };
 		1E42838A51DE81667BF4DBF3 /* NotificationService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E5C0B3CB118AFA28201C6AC /* NotificationService.swift */; };
 		21FBE741327508F75667B30E /* EventStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C333F36C3664DC977CB861 /* EventStyle.swift */; };
 		24DA720400652D8672F4284F /* DeveloperAlarmView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7BC844C6F96CF0493EE42379 /* DeveloperAlarmView.swift */; };
@@ -207,6 +208,7 @@
 		D2021320DE439586EB97AA4D /* NestedWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = NestedWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5DBE0665BFA54156AFA31A1 /* MedicationReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationReminderService.swift; sourceTree = "<group>"; };
 		D8E31E44A4EB11FADAD9E847 /* NestedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedApp.swift; sourceTree = "<group>"; };
+		DF3C7A78D7BC4D22DFB905CE /* InsightViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightViews.swift; sourceTree = "<group>"; };
 		E434350A0E2EEBAD1CD31714 /* IntentEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentEnums.swift; sourceTree = "<group>"; };
 		E4F312FB9324411FA43A7207 /* LogSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSheet.swift; sourceTree = "<group>"; };
 		E6C205667E6A7EEAA5D046CF /* NestedTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = NestedTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -362,6 +364,7 @@
 		8844AE8F84387E82B1406A60 /* Trends */ = {
 			isa = PBXGroup;
 			children = (
+				DF3C7A78D7BC4D22DFB905CE /* InsightViews.swift */,
 				9E84EB11BB7BAC00E7F93373 /* TrendCharts.swift */,
 				FCBE6770AB3BCF5251F14428 /* TrendsView.swift */,
 			);
@@ -770,6 +773,7 @@
 				578000FB9C0DA904D4B51645 /* EventStyle.swift in Sources */,
 				519E4A1427A5D6A7CCD0168B /* FeedAlarmService.swift in Sources */,
 				C77876485A799246823222E9 /* HuckleberryImportSheet.swift in Sources */,
+				19EB1CF02C26EF90DF485BFA /* InsightViews.swift in Sources */,
 				DD60D91245BED301F5D5E27B /* IntentEnums.swift in Sources */,
 				92D1A97DC287049254ABB855 /* LiveActivityService.swift in Sources */,
 				C4876B05EA7D3434C04B7E57 /* LogSheet.swift in Sources */,

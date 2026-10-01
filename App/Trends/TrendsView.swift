@@ -6,13 +6,14 @@ import SwiftUI
 struct TrendsView: View {
   @State private var range: StatsRange = .week
   @Fetch(TrendsRequest(days: 30), animation: Motion.standard) private var data = TrendsRequest.Value()
-  @State private var summary: String?
-  @State private var summaryDigest: WeeklyDigest?
+  @State private var briefing: String?
+  @State private var briefingKey: [String] = []
+  @State private var selectedInsight: Insight?
+  @State private var asking = false
+  @State private var snoozed = InsightSnooze.snoozed()
 
   private var unit: VolumeUnit { data.baby?.unit ?? .ml }
   private var babyName: String { data.baby?.name.isEmpty == false ? data.baby!.name : "Baby" }
-
-  private var summaryTitle: String { days.count < 7 ? "So far" : "This week" }
 
   private var birth: Date? { data.baby?.birthDate }
 
@@ -30,6 +31,57 @@ struct TrendsView: View {
     NightStretchAnalyzer.trend(sleeps: data.history.sleeps, now: Date(), window: data.baby?.nightWindow ?? .defaultNight)
   }
 
+  private var night: DayWindow { data.baby?.nightWindow ?? .defaultNight }
+
+  private var allInsights: [Insight] {
+    InsightEngine.generate(history: data.history, birth: birth, now: Date(), night: night)
+  }
+
+  private var insights: [Insight] { allInsights.filter { !snoozed.contains($0.id) } }
+
+  private var extras: [DayExtras] {
+    DailyExtrasBuilder.build(history: data.history, days: days.map(\.day), now: Date(), night: night)
+  }
+
+  /// Yesterday (the last whole day) against the average of the days before it.
+  private var tiles: [TrendTile] {
+    let recent = DailyStatsBuilder.trimmed(
+      DailyStatsBuilder.build(history: data.history, days: 9, now: Date()), birth: birth)
+    let whole = DailyStatsBuilder.wholeDays(recent, birth: birth)
+    guard let last = whole.last, whole.count >= 2 else { return [] }
+    let before = Array(whole.dropLast())
+    func avg(_ f: (DayStats) -> Double) -> Double { before.map(f).reduce(0, +) / Double(before.count) }
+    func delta(_ value: Double, _ base: Double, unit: String, goodWhenUp: Bool?) -> (String?, Bool?) {
+      let diff = value - base
+      guard abs(diff) >= 0.5 else { return ("Same as usual", nil) }
+      let text = String(format: "%@%.0f%@ vs usual", diff > 0 ? "+" : "−", abs(diff), unit)
+      return (text, goodWhenUp.map { diff > 0 ? $0 : !$0 })
+    }
+    let series = { (f: (DayStats) -> Double) in whole.suffix(7).map(f) }
+    let feeds = delta(Double(last.feedCount), avg { Double($0.feedCount) }, unit: "", goodWhenUp: nil)
+    let sleep = delta(last.sleepTotal / 3600, avg { $0.sleepTotal / 3600 }, unit: " h", goodWhenUp: nil)
+    let wet = delta(Double(last.wetCount), avg { Double($0.wetCount) }, unit: "", goodWhenUp: true)
+    let stretch = delta(last.longestSleep / 3600, avg { $0.longestSleep / 3600 }, unit: " h", goodWhenUp: true)
+    return [
+      TrendTile(title: "Feeds", value: "\(last.feedCount)", delta: feeds.0, deltaGood: feeds.1,
+        series: series { Double($0.feedCount) }, kind: .nursing),
+      TrendTile(title: "Sleep", value: Durations.compact(last.sleepTotal), delta: sleep.0, deltaGood: sleep.1,
+        series: series { $0.sleepTotal / 3600 }, kind: .sleep),
+      TrendTile(title: "Wet diapers", value: "\(last.wetCount)", delta: wet.0, deltaGood: wet.1,
+        series: series { Double($0.wetCount) }, kind: .diaper),
+      TrendTile(title: "Longest sleep", value: Durations.compact(last.longestSleep), delta: stretch.0,
+        deltaGood: stretch.1, series: series { $0.longestSleep / 3600 }, kind: .sleep),
+    ]
+  }
+
+  private var briefFacts: [String] {
+    let recent = DailyStatsBuilder.trimmed(
+      DailyStatsBuilder.build(history: data.history, days: 8, now: Date()), birth: birth)
+    let whole = DailyStatsBuilder.wholeDays(recent, birth: birth)
+    let digest = WeeklyDigest.compute(days: whole.isEmpty ? recent : whole, stretch: nightStretch)
+    return InsightBrief.facts(digest: digest, insights: allInsights, babyName: babyName, unit: unit)
+  }
+
   var body: some View {
     NavigationStack {
       ScrollView {
@@ -39,14 +91,17 @@ struct TrendsView: View {
           }
           .pickerStyle(.segmented)
 
-          if let summary {
-            Card(tint: EventKind.nursing.color) {
-              VStack(alignment: .leading, spacing: 6) {
-                Label(summaryTitle, systemImage: "sparkles").font(.headline)
-                Text(summary).font(.callout)
-              }
+          briefingCard
+
+          let tileList = tiles
+          if !tileList.isEmpty {
+            Text("Yesterday vs usual").font(.headline).padding(.top, 4)
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 12), GridItem(.flexible(), spacing: 12)], spacing: 12) {
+              ForEach(Array(tileList.enumerated()), id: \.offset) { item in item.element }
             }
           }
+
+          InsightGroups(insights: insights) { selectedInsight = $0 }
 
           if let nightStretch {
             Card(tint: EventKind.sleep.color) {
@@ -54,6 +109,8 @@ struct TrendsView: View {
                 .font(.callout.weight(.medium))
             }
           }
+
+          Text("Charts").font(.headline).padding(.top, 4)
 
           section("Day clock", kind: .sleep) {
             DayClockChart(history: data.history, days: max(days.count, 1))
@@ -64,7 +121,13 @@ struct TrendsView: View {
           if days.contains(where: { $0.nursingLeft + $0.nursingRight > 0 }) {
             section("Nursing balance", kind: .nursing) { NursingBalanceChart(days: days) }
           }
+          if extras.contains(where: { $0.longestFeedGap > 0 }) {
+            section("Time between feeds", kind: .nursing) { FeedGapChart(extras: extras) }
+          }
           section("Sleep", kind: .sleep) { SleepChart(days: days) }
+          if extras.contains(where: { $0.nightSleep + $0.daySleep > 0 }) {
+            section("Night vs day sleep", kind: .sleep) { NightDaySleepChart(extras: extras) }
+          }
           section("Diapers", kind: .diaper) { DiaperChart(days: days, birth: birth) }
           if days.contains(where: { $0.pumpMl > 0 }) || !data.history.pumps.isEmpty {
             section("Pumping", kind: .pump) {
@@ -77,7 +140,28 @@ struct TrendsView: View {
       .nestedBackground()
       .actionBarInset(tab: .trends)
       .navigationTitle("Trends")
-      .task(id: data.history) { await refreshSummary() }
+      .task(id: data.history) { await refreshBriefing() }
+      .sheet(item: $selectedInsight) { insight in
+        InsightDetailSheet(insight: insight, babyName: babyName) {
+          InsightSnooze.snooze(insight.id)
+          snoozed = InsightSnooze.snoozed()
+        }
+      }
+      .sheet(isPresented: $asking) {
+        AskTrendsSheet(
+          facts: briefFacts,
+          table: InsightBrief.dailyTable(
+            DailyStatsBuilder.trimmed(
+              DailyStatsBuilder.build(history: data.history, days: 14, now: Date()), birth: birth),
+            extras: DailyExtrasBuilder.build(
+              history: data.history,
+              days: DailyStatsBuilder.trimmed(
+                DailyStatsBuilder.build(history: data.history, days: 14, now: Date()), birth: birth
+              ).map(\.day),
+              now: Date(), night: night),
+            unit: unit),
+          babyName: babyName)
+      }
     }
   }
 
@@ -120,21 +204,37 @@ struct TrendsView: View {
     }
   }
 
-  private func refreshSummary() async {
-    // Whole days since her birth: zeros from before she was born, or a day still in progress,
-    // would pull every average down.
-    let recent = DailyStatsBuilder.trimmed(
-      DailyStatsBuilder.build(history: data.history, days: 8, now: Date()), birth: birth)
-    let whole = DailyStatsBuilder.wholeDays(recent, birth: birth)
-    let week = whole.isEmpty ? recent : whole
-    guard week.contains(where: { $0.feedCount > 0 }),
-      let digest = WeeklyDigest.compute(days: week, stretch: nightStretch)
-    else {
-      summary = nil
+  @ViewBuilder
+  private var briefingCard: some View {
+    if let briefing {
+      Card(tint: .purple) {
+        VStack(alignment: .leading, spacing: 8) {
+          Label("Briefing", systemImage: "sparkles").font(.headline).foregroundStyle(.purple)
+          Text(briefing).font(.callout)
+          if SummaryService.modelAvailable {
+            Button { asking = true } label: {
+              Label("Ask about trends", systemImage: "bubble.left.and.text.bubble.right")
+                .font(.subheadline.weight(.semibold))
+            }
+            .buttonStyle(.bordered).tint(.purple)
+            .padding(.top, 2)
+          }
+        }
+      }
+    }
+  }
+
+  private func refreshBriefing() async {
+    let all = allInsights
+    guard all.contains(where: { $0.topic != .data }) else {
+      briefing = nil
       return
     }
-    guard digest != summaryDigest else { return }
-    summaryDigest = digest
-    summary = await SummaryService.summarize(digest, babyName: babyName, unit: unit)
+    let facts = briefFacts
+    guard facts != briefingKey else { return }
+    briefingKey = facts
+    briefing = InsightBrief.fallback(insights: all, babyName: babyName)
+    briefing = await SummaryService.brief(
+      facts: facts, fallback: InsightBrief.fallback(insights: all, babyName: babyName), babyName: babyName)
   }
 }
