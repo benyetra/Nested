@@ -479,6 +479,25 @@ public enum InsightBrief {
     }
   }
 
+  /// Structured briefing used when the model is unavailable.
+  public static func fallbackContent(insights: [Insight], babyName: String) -> BriefingContent {
+    let real = insights.filter { $0.topic != .data }
+    guard !real.isEmpty else {
+      return BriefingContent(headline: "Keep logging and \(babyName)'s patterns will show up here.")
+    }
+    let attention = real.filter { $0.severity <= .notice }.prefix(3).map(\.title)
+    let wins = real.filter { $0.severity == .good }.prefix(3).map(\.title)
+    let headline: String
+    if real.contains(where: { $0.severity == .attention }) {
+      headline = "A few things are worth a look."
+    } else if attention.isEmpty {
+      headline = "\(babyName) is doing well."
+    } else {
+      headline = "Mostly steady, with a change or two to watch."
+    }
+    return BriefingContent(headline: headline, attention: Array(attention), wins: Array(wins))
+  }
+
   /// Plain-text briefing used when the model is unavailable.
   public static func fallback(insights: [Insight], babyName: String) -> String {
     let real = insights.filter { $0.topic != .data }
@@ -497,5 +516,18 @@ public enum InsightBrief {
       parts.append("Going well: \(good.map { $0.title.lowercased() }.joined(separator: "; ")).")
     }
     return parts.joined(separator: " ")
+  }
+}
+
+/// The briefing as shown on the Trends card: a headline, things to watch, and wins.
+public struct BriefingContent: Hashable, Sendable {
+  public var headline: String
+  public var attention: [String]
+  public var wins: [String]
+
+  public init(headline: String, attention: [String] = [], wins: [String] = []) {
+    self.headline = headline
+    self.attention = attention
+    self.wins = wins
   }
 }

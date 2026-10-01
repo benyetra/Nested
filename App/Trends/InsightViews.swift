@@ -260,6 +260,8 @@ struct AskTrendsSheet: View {
               Label("Answer", systemImage: "sparkles").font(.headline)
               Text(answer).font(.callout).padding(.top, 2)
             }
+          } else if let reason = SummaryService.unavailableReason {
+            Text(reason).font(.callout).foregroundStyle(.secondary)
           } else if asking {
             ProgressView("Looking at the data…").frame(maxWidth: .infinity).padding(.top, 40)
           } else {
@@ -306,9 +308,12 @@ struct AskTrendsSheet: View {
     answer = nil
     asking = true
     Task {
-      let result = await SummaryService.answer(
-        question: trimmed, facts: facts, table: table, babyName: babyName)
-      answer = result
+      await SummaryService.answer(
+        question: trimmed, facts: facts, table: table, babyName: babyName
+      ) { partial in
+        answer = partial
+        asking = false
+      }
       asking = false
     }
   }

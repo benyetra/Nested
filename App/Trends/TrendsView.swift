@@ -6,7 +6,7 @@ import SwiftUI
 struct TrendsView: View {
   @State private var range: StatsRange = .week
   @Fetch(TrendsRequest(days: 30), animation: Motion.standard) private var data = TrendsRequest.Value()
-  @State private var briefing: String?
+  @State private var briefing: BriefingContent?
   @State private var briefingKey: [String] = []
   @State private var selectedInsight: Insight?
   @State private var asking = false
@@ -210,7 +210,17 @@ struct TrendsView: View {
       Card(tint: .purple) {
         VStack(alignment: .leading, spacing: 8) {
           Label("Briefing", systemImage: "sparkles").font(.headline).foregroundStyle(.purple)
-          Text(briefing).font(.callout)
+          Text(briefing.headline).font(.callout.weight(.semibold))
+          ForEach(briefing.attention, id: \.self) { line in
+            Label(line, systemImage: "exclamationmark.circle.fill")
+              .font(.callout).foregroundStyle(.primary)
+              .symbolRenderingMode(.multicolor)
+          }
+          ForEach(briefing.wins, id: \.self) { line in
+            Label(line, systemImage: "checkmark.circle.fill")
+              .font(.callout).foregroundStyle(.primary)
+              .symbolRenderingMode(.multicolor)
+          }
           if SummaryService.modelAvailable {
             Button { asking = true } label: {
               Label("Ask about trends", systemImage: "bubble.left.and.text.bubble.right")
@@ -233,8 +243,8 @@ struct TrendsView: View {
     let facts = briefFacts
     guard facts != briefingKey else { return }
     briefingKey = facts
-    briefing = InsightBrief.fallback(insights: all, babyName: babyName)
-    briefing = await SummaryService.brief(
-      facts: facts, fallback: InsightBrief.fallback(insights: all, babyName: babyName), babyName: babyName)
+    let fallback = InsightBrief.fallbackContent(insights: all, babyName: babyName)
+    briefing = fallback
+    briefing = await SummaryService.brief(facts: facts, fallback: fallback, babyName: babyName)
   }
 }

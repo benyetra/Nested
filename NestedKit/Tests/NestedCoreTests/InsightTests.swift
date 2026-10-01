@@ -114,3 +114,20 @@ struct InsightBriefTests {
     #expect(lines == ["[WORTH RAISING WITH THE PEDIATRICIAN] Low. d"])
   }
 }
+
+@Suite("Briefing content")
+struct BriefingContentTests {
+  @Test("Headline reflects severity; lists are capped")
+  func content() {
+    let items = [
+      Insight(id: "a", severity: .attention, topic: .diapers, title: "Low wet", detail: ""),
+      Insight(id: "b", severity: .good, topic: .feeding, title: "Steady", detail: ""),
+    ]
+    let c = InsightBrief.fallbackContent(insights: items, babyName: "M")
+    #expect(c.headline == "A few things are worth a look.")
+    #expect(c.attention == ["Low wet"])
+    #expect(c.wins == ["Steady"])
+    let calm = InsightBrief.fallbackContent(insights: [items[1]], babyName: "M")
+    #expect(calm.headline == "M is doing well.")
+  }
+}
