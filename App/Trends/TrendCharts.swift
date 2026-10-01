@@ -316,13 +316,27 @@ struct NursingBalanceChart: View {
 
 struct SleepChart: View {
   let days: [DayStats]
+  /// Typical hours of sleep per day for her age; drawn as a soft band behind the bars.
+  var typical: ClosedRange<Double>? = nil
   @State private var selected: Date?
 
   var body: some View {
     Chart {
+      if let typical, let first = days.first?.day, let last = days.last?.day,
+        let end = Calendar.current.date(byAdding: .day, value: 1, to: last)
+      {
+        RectangleMark(
+          xStart: .value("From", first), xEnd: .value("To", end),
+          yStart: .value("Typical low", typical.lowerBound), yEnd: .value("Typical high", typical.upperBound)
+        )
+        .foregroundStyle(.green.opacity(0.12))
+        .accessibilityHidden(true)
+      }
       ForEach(days) { day in
         BarMark(x: .value("Day", day.day, unit: .day), y: .value("Hours", day.sleepTotal / 3600))
           .foregroundStyle(EventKind.sleep.color.opacity(0.55))
+          .accessibilityLabel(dayLabel(day.day))
+          .accessibilityValue("Total \(Durations.spoken(day.sleepTotal)), longest \(Durations.spoken(day.longestSleep))")
         LineMark(x: .value("Day", day.day, unit: .day), y: .value("Longest", day.longestSleep / 3600))
           .foregroundStyle(EventKind.sleep.color)
           .interpolationMethod(.monotone)
@@ -339,9 +353,9 @@ struct SleepChart: View {
           }
       }
     }
-    .chartYAxisLabel("hours · bars total, line longest")
+    .chartYAxisLabel(typical == nil ? "hours · bars total, line longest" : "hours · bars total, line longest, band typical")
     .chartXSelection(value: $selected)
-    .frame(height: 170)
+    .frame(minHeight: 170)
     .accessibilityLabel("Total sleep and longest stretch per day")
   }
 }
@@ -500,44 +514,73 @@ struct Callout: View {
 /// Longest time between feeds each day, with the day's average gap as a line.
 struct FeedGapChart: View {
   let extras: [DayExtras]
+  @State private var selected: Date?
 
   var body: some View {
     Chart {
       ForEach(extras) { day in
         BarMark(x: .value("Day", day.day, unit: .day), y: .value("Longest", day.longestFeedGap / 3600))
           .foregroundStyle(EventKind.nursing.color.opacity(0.55))
+          .accessibilityLabel(dayLabel(day.day))
+          .accessibilityValue(
+            "Longest gap \(Durations.spoken(day.longestFeedGap)), average \(Durations.spoken(day.averageFeedGap))")
         LineMark(x: .value("Day", day.day, unit: .day), y: .value("Average", day.averageFeedGap / 3600))
           .foregroundStyle(EventKind.nursing.color)
           .interpolationMethod(.monotone)
           .symbol(.circle)
       }
+      if let selected, let day = extras.first(where: { Calendar.current.isDate($0.day, inSameDayAs: selected) }) {
+        RuleMark(x: .value("Selected", day.day, unit: .day))
+          .foregroundStyle(.secondary)
+          .annotation(position: .top, overflowResolution: .init(x: .fit, y: .disabled)) {
+            Callout(title: dayLabel(day.day), lines: [
+              "Longest \(Durations.format(day.longestFeedGap))",
+              "Average \(Durations.format(day.averageFeedGap))",
+            ])
+          }
+      }
     }
     .chartYAxisLabel("hours · bars longest, line average")
+    .chartXSelection(value: $selected)
     .dayAxis(days: extras.count)
-    .frame(height: 150)
-    .accessibilityLabel("Longest and average time between feeds per day")
+    .frame(minHeight: 150)
   }
 }
 
 /// Sleep per day split into the night window and daytime.
 struct NightDaySleepChart: View {
   let extras: [DayExtras]
+  @State private var selected: Date?
 
   var body: some View {
     Chart {
       ForEach(extras) { day in
         BarMark(x: .value("Day", day.day, unit: .day), y: .value("Hours", day.nightSleep / 3600))
           .foregroundStyle(by: .value("When", "Night"))
+          .accessibilityLabel("\(dayLabel(day.day)), night")
+          .accessibilityValue(Durations.spoken(day.nightSleep))
         BarMark(x: .value("Day", day.day, unit: .day), y: .value("Hours", day.daySleep / 3600))
           .foregroundStyle(by: .value("When", "Day"))
+          .accessibilityLabel("\(dayLabel(day.day)), daytime")
+          .accessibilityValue(Durations.spoken(day.daySleep))
+      }
+      if let selected, let day = extras.first(where: { Calendar.current.isDate($0.day, inSameDayAs: selected) }) {
+        RuleMark(x: .value("Selected", day.day, unit: .day))
+          .foregroundStyle(.secondary)
+          .annotation(position: .top, overflowResolution: .init(x: .fit, y: .disabled)) {
+            Callout(title: dayLabel(day.day), lines: [
+              "Night \(Durations.format(day.nightSleep))",
+              "Day \(Durations.format(day.daySleep))",
+            ])
+          }
       }
     }
     .chartForegroundStyleScale([
       "Night": EventKind.sleep.color, "Day": EventKind.sleep.color.opacity(0.4),
     ])
     .chartYAxisLabel("hours")
+    .chartXSelection(value: $selected)
     .dayAxis(days: extras.count)
-    .frame(height: 150)
-    .accessibilityLabel("Night and daytime sleep per day")
+    .frame(minHeight: 150)
   }
 }

@@ -260,7 +260,7 @@ public enum InsightEngine {
   }
 
   /// Typical total sleep per 24 h by age (National Sleep Foundation ranges, in hours).
-  static func sleepRange(ageDays: Int?) -> ClosedRange<Double>? {
+  public static func sleepRange(ageDays: Int?) -> ClosedRange<Double>? {
     guard let ageDays else { return nil }
     return ageDays < 120 ? 14...17 : 12...15
   }

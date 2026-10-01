@@ -124,7 +124,13 @@ struct TrendsView: View {
           if extras.contains(where: { $0.longestFeedGap > 0 }) {
             section("Time between feeds", kind: .nursing) { FeedGapChart(extras: extras) }
           }
-          section("Sleep", kind: .sleep) { SleepChart(days: days) }
+          section("Sleep", kind: .sleep) {
+            SleepChart(
+              days: days,
+              typical: birth.flatMap {
+                InsightEngine.sleepRange(ageDays: AgeMath.days(from: $0, to: Date()))
+              })
+          }
           if extras.contains(where: { $0.nightSleep + $0.daySleep > 0 }) {
             section("Night vs day sleep", kind: .sleep) { NightDaySleepChart(extras: extras) }
           }
