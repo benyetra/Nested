@@ -57,8 +57,9 @@ jobs:
             fi
             [ $ELAPSED -ge 2400 ] && { echo "giving up"; kill $PID; break; }
           done
-          wait $PID; echo "xcodebuild exit: $?"
-          grep -E "error:" build.log | head -30
+          RC=0; wait $PID || RC=$?
+          echo "xcodebuild exit: $RC"
+          grep -E "error:|warning: .*took [0-9]+ms" build.log | sed 's#/Users/runner/work/Nested/Nested/##g' | head -40 | cut -c1-300
           tail -5 build.log | cut -c1-300
 
       - name: Save build cache
