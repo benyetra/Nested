@@ -257,8 +257,8 @@ extension AppModel {
       try store.deleteMedication(id: medication.id)
       return nil
     }
-    let store = store
-    showToast("Deleted \(medication.name)", undo: { try? store.restoreMedication(medication) })
+    let undoStore = store
+    showToast("Deleted \(medication.name)", undo: { try? undoStore.restoreMedication(medication) })
   }
 
   func giveDose(_ medication: Medication, dueAt: Date?) {
@@ -268,8 +268,8 @@ extension AppModel {
       return nil
     }
     guard let dose = logged else { return }
-    let store = store
-    showToast("\(medication.name) given", undo: { try? store.deleteDose(id: dose.id) })
+    let undoStore = store
+    showToast("\(medication.name) given", undo: { try? undoStore.deleteDose(id: dose.id) })
   }
 
   func skipDose(_ medication: Medication, dueAt: Date) {

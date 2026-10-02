@@ -106,8 +106,8 @@ extension AppModel {
       try store.deleteQuestion(id: question.id)
       return nil
     }
-    let store = store
-    showToast("Deleted question", undo: { try? store.restoreQuestion(question) })
+    let undoStore = store
+    showToast("Deleted question", undo: { try? undoStore.restoreQuestion(question) })
   }
 
   func clearAnswered(_ questions: [Question]) {
@@ -115,9 +115,9 @@ extension AppModel {
       for question in questions { try store.deleteQuestion(id: question.id) }
       return nil
     }
-    let store = store
+    let undoStore = store
     showToast(
       "Cleared \(questions.count) answered",
-      undo: { for question in questions { try? store.restoreQuestion(question) } })
+      undo: { for question in questions { try? undoStore.restoreQuestion(question) } })
   }
 }
