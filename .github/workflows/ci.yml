@@ -56,7 +56,7 @@ jobs:
   ios:
     name: Build app, widgets, watch; run tests
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 120
     steps:
       - uses: actions/checkout@v4
 
@@ -75,6 +75,15 @@ jobs:
       - name: Install XcodeGen
         run: brew install xcodegen
 
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: dd-ci-${{ hashFiles('project.yml', 'NestedKit/Package.swift') }}-${{ github.run_id }}
+          restore-keys: |
+            dd-ci-${{ hashFiles('project.yml', 'NestedKit/Package.swift') }}-
+            dd-ci-
+
       - name: Generate project
         run: |
           xcodegen generate
@@ -91,6 +100,7 @@ jobs:
             -skipMacroValidation \
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
+            ONLY_ACTIVE_ARCH=YES \
             build | tee build.log | xcbeautify --renderer github-actions || (grep -E "error:" build.log | head -100; exit 1)
 
       - name: Intent tests
@@ -114,3 +124,10 @@ jobs:
             -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO \
             test | tee test.log | xcbeautify --renderer github-actions || (grep -E "error:|failed|✘" test.log | head -100; exit 1)
+
+      - name: Save build cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: dd-ci-${{ hashFiles('project.yml', 'NestedKit/Package.swift') }}-${{ github.run_id }}
