@@ -40,16 +40,16 @@ jobs:
             -project Nested.xcodeproj -scheme Nested \
             -destination 'generic/platform=iOS Simulator' \
             -skipMacroValidation -skipPackagePluginValidation \
-            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES ARCHS=arm64 \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES ARCHS=arm64 SWIFT_ENABLE_BATCH_MODE=NO \
             > build.log 2>&1 &
           PID=$!
           START=$(date +%s)
           while kill -0 $PID 2>/dev/null; do
-            sleep 120
+            sleep 90
             ELAPSED=$(( $(date +%s) - START ))
             echo "=== t+${ELAPSED}s  $(wc -l < build.log) log lines"
             grep -E "warning: (expression|instance method|global function|getter|initializer|closure|property|static|var|let|func)[^\n]*took" build.log | tail -5
-            ps -axo pid,etime,pcpu,args | grep '[s]wift-frontend' | awk '{printf "pid=%s up=%s cpu=%s files:", $1, $2, $3; for (i=1;i<=NF;i++) if ($i=="-primary-file") printf " %s", $(i+1); print ""}' | sed 's#/Users/runner/work/Nested/Nested/##g' | cut -c1-400
+            ps -axo pid,etime,pcpu,args | grep '[s]wift-frontend' | awk '{printf "pid=%s up=%s cpu=%s files:", $1, $2, $3; for (i=1;i<=NF;i++) if ($i=="-primary-file") printf " %s", $(i+1); print ""}' | sed 's#/Users/runner/work/Nested/Nested/##g; s#/Users/runner/Library/Developer/Xcode/DerivedData/[^ ]*/SourcePackages/checkouts/##g' | cut -c1-300
             if [ $ELAPSED -ge 480 ]; then
               TOP=$(ps -axo pid,etime,comm | grep '[s]wift-frontend' | sort -k2 -r | head -1 | awk '{print $1}')
               [ -n "$TOP" ] && sudo sample "$TOP" 3 -file sample.txt >/dev/null 2>&1 && grep -E "^\s+[0-9]+ .*(swift::|SIL|TypeCheck|Constraint|Solver|AttributedString)" sample.txt | head -40 | cut -c1-220
