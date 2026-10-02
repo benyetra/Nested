@@ -41,7 +41,6 @@ jobs:
             -destination 'generic/platform=iOS Simulator' \
             -skipMacroValidation -skipPackagePluginValidation \
             CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES ARCHS=arm64 \
-            OTHER_SWIFT_FLAGS='-Xfrontend -warn-long-expression-type-checking=500 -Xfrontend -warn-long-function-bodies=1500' \
             > build.log 2>&1 &
           PID=$!
           START=$(date +%s)
