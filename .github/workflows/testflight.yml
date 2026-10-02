@@ -20,7 +20,7 @@ jobs:
     name: Archive and upload
     if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: macos-26
-    timeout-minutes: 60
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
         with:
@@ -38,6 +38,13 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
+      - name: Resolve packages
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          xcodebuild -resolvePackageDependencies -project Nested.xcodeproj -scheme Nested \
+            -skipMacroValidation -skipPackagePluginValidation 2>&1 | tail -40
+
       - name: Write API key
         env:
           ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
@@ -48,11 +55,11 @@ jobs:
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
 
       - name: Archive
+        timeout-minutes: 30
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
         run: |
-          set -o pipefail
           # Strictly increasing build number across runs, same for app, widgets and watch.
           BUILD=$(date -u +%y%m%d%H%M)
           echo "Build $BUILD"
@@ -69,7 +76,16 @@ jobs:
             -skipMacroValidation \
             -skipPackagePluginValidation \
             CURRENT_PROJECT_VERSION="$BUILD" \
-            | tee archive.log | xcbeautify --renderer github-actions
+            > archive.log 2>&1 &
+          PID=$!
+          # Print progress while it runs so a hang shows where it stopped.
+          while kill -0 $PID 2>/dev/null; do sleep 60; echo "--- $(date -u +%T) $(wc -l < archive.log) lines"; tail -3 archive.log; done
+          wait $PID || { grep -E "error:" archive.log | head -60; tail -80 archive.log; exit 1; }
+          tail -5 archive.log
+
+      - name: Archive log (on failure or cancel)
+        if: failure() || cancelled()
+        run: tail -150 archive.log || true
 
       - name: Export and upload to TestFlight
         env:
