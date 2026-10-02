@@ -55,7 +55,7 @@ jobs:
           printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
 
       - name: Archive
-        timeout-minutes: 30
+        timeout-minutes: 20
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
@@ -78,6 +78,18 @@ jobs:
             CURRENT_PROJECT_VERSION="$BUILD" \
             > archive.log 2>&1 &
           PID=$!
+          # Watchdog: if the compiler is still running after 8 minutes, print which files it is
+          # compiling and a stack sample, so a hang can be traced to its source.
+          (
+            sleep 480
+            for round in 1 2; do
+              echo "=== swift-frontend processes at $(date -u +%T)"
+              ps -axo pid,etime,pcpu,args | grep '[s]wift-frontend' | awk '{printf "pid=%s up=%s cpu=%s files:", $1, $2, $3; for (i=1;i<=NF;i++) if ($i=="-primary-file") printf " %s", $(i+1); print ""}'
+              TOP=$(ps -axo pid,pcpu,comm | grep '[s]wift-frontend' | sort -k2 -nr | head -1 | awk '{print $1}')
+              [ -n "$TOP" ] && sudo sample "$TOP" 3 -file "$RUNNER_TEMP/sample.txt" >/dev/null 2>&1 && head -90 "$RUNNER_TEMP/sample.txt"
+              sleep 150
+            done
+          ) &
           # Print progress while it runs so a hang shows where it stopped.
           while kill -0 $PID 2>/dev/null; do sleep 60; echo "--- $(date -u +%T) $(wc -l < archive.log) lines"; tail -3 archive.log; done
           wait $PID || { grep -E "error:" archive.log | head -60; tail -80 archive.log; exit 1; }
