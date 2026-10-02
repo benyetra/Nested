@@ -11,6 +11,10 @@ struct TrendsView: View {
   @State private var selectedInsight: Insight?
   @State private var asking = false
   @State private var snoozed = InsightSnooze.snoozed()
+  /// Bumped every minute and when the app returns to the foreground, so anything computed
+  /// from the current time (today's partial day, running timers, midnight) stays fresh.
+  @State private var tick = Date()
+  @Environment(\.scenePhase) private var scenePhase
 
   private var unit: VolumeUnit { data.baby?.unit ?? .ml }
   private var babyName: String { data.baby?.name.isEmpty == false ? data.baby!.name : "Baby" }
@@ -147,6 +151,14 @@ struct TrendsView: View {
       .actionBarInset(tab: .trends)
       .navigationTitle("Trends")
       .task(id: data.history) { await refreshBriefing() }
+      .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { tick = $0 }
+      .onChange(of: scenePhase) { _, phase in
+        if phase == .active {
+          tick = Date()
+          snoozed = InsightSnooze.snoozed()
+        }
+      }
+      .id(Calendar.current.startOfDay(for: tick))
       .sheet(item: $selectedInsight) { insight in
         InsightDetailSheet(insight: insight, babyName: babyName) {
           InsightSnooze.snooze(insight.id)
