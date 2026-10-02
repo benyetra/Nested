@@ -1,0 +1,103 @@
+name: TestFlight
+
+# Runs after CI passes on main, then archives, signs and uploads to TestFlight.
+# One-time setup (repo Settings > Secrets and variables > Actions):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (App Store Connect API key, Admin or App Manager role)
+
+on:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Archive and upload
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Select Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          xcodebuild -version
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Write API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+        run: |
+          [ -n "$ASC_KEY_P8" ] || { echo "Missing ASC_KEY_P8 secret"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+
+      - name: Archive
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          set -o pipefail
+          # Strictly increasing build number across runs, same for app, widgets and watch.
+          BUILD=$(date -u +%y%m%d%H%M)
+          echo "Build $BUILD"
+          xcodebuild archive \
+            -project Nested.xcodeproj \
+            -scheme Nested \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Nested.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            -skipMacroValidation \
+            -skipPackagePluginValidation \
+            CURRENT_PROJECT_VERSION="$BUILD" \
+            | tee archive.log | xcbeautify --renderer github-actions
+
+      - name: Export and upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>destination</key><string>upload</string>
+            <key>teamID</key><string>87A6J7UY87</string>
+            <key>signingStyle</key><string>automatic</string>
+            <key>uploadSymbols</key><true/>
+          </dict>
+          </plist>
+          PLIST
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Nested.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+
+      - name: Remove API key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
