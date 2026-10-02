@@ -1,0 +1,69 @@
+name: Diagnose slow build
+
+# Manual one-off: builds the simulator app target and, every few minutes, prints which source
+# files the longest-running compiler processes are working on, to find what makes it slow.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_*.app | grep -vi beta | sort -V | tail -1)
+          sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Restore build cache
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: dd-diag-${{ github.run_id }}
+          restore-keys: |
+            dd-tf-
+            dd-ci-
+
+      - name: Build with watchdog
+        timeout-minutes: 45
+        run: |
+          xcodebuild build \
+            -project Nested.xcodeproj -scheme Nested \
+            -destination 'generic/platform=iOS Simulator' \
+            -skipMacroValidation -skipPackagePluginValidation \
+            CODE_SIGNING_ALLOWED=NO ONLY_ACTIVE_ARCH=YES ARCHS=arm64 \
+            OTHER_SWIFT_FLAGS='-Xfrontend -warn-long-expression-type-checking=500 -Xfrontend -warn-long-function-bodies=1500' \
+            > build.log 2>&1 &
+          PID=$!
+          START=$(date +%s)
+          while kill -0 $PID 2>/dev/null; do
+            sleep 120
+            ELAPSED=$(( $(date +%s) - START ))
+            echo "=== t+${ELAPSED}s  $(wc -l < build.log) log lines"
+            grep -E "warning: (expression|instance method|global function|getter|initializer|closure|property|static|var|let|func)[^\n]*took" build.log | tail -5
+            ps -axo pid,etime,pcpu,args | grep '[s]wift-frontend' | awk '{printf "pid=%s up=%s cpu=%s files:", $1, $2, $3; for (i=1;i<=NF;i++) if ($i=="-primary-file") printf " %s", $(i+1); print ""}' | sed 's#/Users/runner/work/Nested/Nested/##g' | cut -c1-400
+            if [ $ELAPSED -ge 480 ]; then
+              TOP=$(ps -axo pid,etime,comm | grep '[s]wift-frontend' | sort -k2 -r | head -1 | awk '{print $1}')
+              [ -n "$TOP" ] && sudo sample "$TOP" 3 -file sample.txt >/dev/null 2>&1 && grep -E "^\s+[0-9]+ .*(swift::|SIL|TypeCheck|Constraint|Solver|AttributedString)" sample.txt | head -40 | cut -c1-220
+            fi
+            [ $ELAPSED -ge 2400 ] && { echo "giving up"; kill $PID; break; }
+          done
+          wait $PID; echo "xcodebuild exit: $?"
+          grep -E "error:" build.log | head -30
+          tail -5 build.log | cut -c1-300
+
+      - name: Save build cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Developer/Xcode/DerivedData
+          key: dd-diag-${{ github.run_id }}
