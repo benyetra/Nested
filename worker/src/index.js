@@ -51,6 +51,32 @@ export function buildPush(body, env, now) {
     };
   }
 
+  if (body.type === "activity") {
+    // A quiet "Yvette fed Maddie" note for the other phone. Passive: no sound, no screen wake, it
+    // just lands in Notification Center. content-available also wakes the app (when it isn't
+    // force-quit) so it syncs in the background; the collapse id keeps only the latest one.
+    const title = String(body.title || "").slice(0, 120);
+    const text = String(body.body || "").slice(0, 200);
+    if (!title) throw new Error("Activity needs a title");
+    return {
+      token,
+      headers: {
+        "apns-push-type": "alert",
+        "apns-topic": env.BUNDLE_ID,
+        "apns-priority": "10",
+        "apns-collapse-id": "nested-activity",
+      },
+      payload: {
+        aps: {
+          alert: { title, body: text },
+          "interruption-level": "passive",
+          "content-available": 1,
+          "thread-id": "nested-activity",
+        },
+      },
+    };
+  }
+
   if (body.type !== "liveactivity") throw new Error("Unknown type");
   const event = body.event;
   if (!["start", "update", "end"].includes(event)) throw new Error("Unknown event");

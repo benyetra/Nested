@@ -94,7 +94,9 @@ final class NotificationService: NSObject, UNUserNotificationCenterDelegate {
     _ center: UNUserNotificationCenter,
     willPresent notification: UNNotification
   ) async -> UNNotificationPresentationOptions {
-    [.banner, .sound, .list]
+    // The partner activity note is only for when Nested isn't open; the screen is live already.
+    if notification.request.content.threadIdentifier == "nested-activity" { return [] }
+    return [.banner, .sound, .list]
   }
 
   nonisolated func userNotificationCenter(

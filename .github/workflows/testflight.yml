@@ -68,6 +68,9 @@ jobs:
         env:
           ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
           ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          # Partner push Worker (optional): leave the secrets unset to build without it.
+          NEST_WORKER_URL: ${{ secrets.NEST_WORKER_URL }}
+          NEST_WORKER_KEY: ${{ secrets.NEST_WORKER_KEY }}
         run: |
           # Strictly increasing build number across runs, same for app, widgets and watch.
           BUILD=$(date -u +%y%m%d%H%M)
@@ -85,6 +88,8 @@ jobs:
             -skipMacroValidation \
             -skipPackagePluginValidation \
             CURRENT_PROJECT_VERSION="$BUILD" \
+            NEST_WORKER_URL="$NEST_WORKER_URL" \
+            NEST_WORKER_KEY="$NEST_WORKER_KEY" \
             > archive.log 2>&1 &
           PID=$!
           # Print progress while it runs so a hang shows where it stopped.

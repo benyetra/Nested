@@ -34,6 +34,18 @@ test("background push wakes the app", () => {
   assert.equal(push.payload.aps["content-available"], 1);
 });
 
+test("activity push is a quiet alert that also wakes the app", () => {
+  const push = buildPush({ type: "activity", token, title: "Yvette logged a diaper", body: "Wet" }, env, 1000);
+  assert.equal(push.headers["apns-push-type"], "alert");
+  assert.equal(push.headers["apns-topic"], "com.yetra.nest");
+  assert.equal(push.headers["apns-collapse-id"], "nested-activity");
+  assert.equal(push.payload.aps["interruption-level"], "passive");
+  assert.equal(push.payload.aps["content-available"], 1);
+  assert.equal(push.payload.aps.sound, undefined);
+  assert.equal(push.payload.aps.alert.title, "Yvette logged a diaper");
+  assert.throws(() => buildPush({ type: "activity", token, body: "x" }, env, 1));
+});
+
 test("rejects bad input", () => {
   assert.throws(() => buildPush({ type: "liveactivity", event: "start", token }, env, 1));
   assert.throws(() => buildPush({ type: "liveactivity", event: "start", token: "../x" }, env, 1));

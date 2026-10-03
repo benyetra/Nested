@@ -1,10 +1,11 @@
 # Nested push Worker
 
-This is the only server piece, and it runs on the Cloudflare Workers free plan. The app calls `POST /push` in three cases:
+This is the only server piece, and it runs on the Cloudflare Workers free plan. The app calls `POST /push` whenever one phone writes something the other should see right away:
 
 - **A timer starts.** The Worker sends a Live Activity *push-to-start* to the partner's phone.
 - **A timer changes or stops.** The Worker sends a Live Activity update or end to the partner's running activity.
-- **The feed alarm is stopped or snoozed.** The Worker sends a background push, so the partner's app syncs and silences or reschedules its alarm.
+- **The feed alarm is stopped or snoozed, or an entry is edited, deleted or a setting changes.** The Worker sends a silent background push, so the partner's app syncs straight away.
+- **Something is logged or a timer finishes.** The Worker sends a quiet, passive note ("Yvette logged a diaper") that also wakes the app to sync. It makes no sound, and the app hides it while it's open.
 
 Nothing is stored. Tokens come from the shared `deviceTokens` table in CloudKit.
 
@@ -22,7 +23,7 @@ Nothing is stored. Tokens come from the shared `deviceTokens` table in CloudKit.
    npx wrangler deploy
    ```
 
-3. Set `NEST_WORKER_URL` (for example `https://nest-push.<you>.workers.dev`) and `NEST_WORKER_KEY` (the same `NEST_KEY`) in `project.yml`.
+3. Give the app the Worker's address and key. For TestFlight builds from GitHub Actions, add repository secrets `NEST_WORKER_URL` (for example `https://nest-push.<you>.workers.dev`) and `NEST_WORKER_KEY` (the same `NEST_KEY`). For builds from Xcode, set the two values in `project.yml` locally and don't commit them: the repo is public.
 4. In `wrangler.toml`, set `APNS_ENV` to `development` for builds run from Xcode. Use `production` for TestFlight.
 
 Tests: `node --test`.

@@ -31,6 +31,8 @@ final class PartnerPushService {
 
     switch change {
     case .timerStarted(let entry):
+      // Wake the partner's app so the new entry syncs even if the Live Activity can't start.
+      wake(partners)
       guard let payload = liveActivity(for: entry, snapshot: snapshot) else { return }
       for device in partners {
         guard let token = device.pushToStartToken else { continue }
@@ -43,12 +45,19 @@ final class PartnerPushService {
         ])
       }
     case .sideSwitched(let entry), .edited(let entry):
+      wake(partners)
       guard entry.isRunning, let payload = liveActivity(for: entry, snapshot: snapshot) else { return }
       for device in partners where device.activityEntryID == entry.id {
         guard let token = device.activityPushToken else { continue }
         send(["type": "liveactivity", "event": "update", "token": token, "contentState": payload.state])
       }
     case .timerStopped(let entry), .deleted(let entry):
+      if case .timerStopped = change {
+        tellPartners(partners, title: "\(snapshot.me) finished \(entry.kind.title.lowercased())",
+          body: entry.title(unit: snapshot.unit))
+      } else {
+        wake(partners)
+      }
       for device in partners where device.activityEntryID == entry.id {
         guard let token = device.activityPushToken else { continue }
         let state = liveActivity(for: entry, snapshot: snapshot)?.state ?? [:]
@@ -61,8 +70,29 @@ final class PartnerPushService {
         guard let token = device.apnsToken else { continue }
         send(["type": "background", "token": token])
       }
-    case .logged, .settingsChanged:
-      break
+    case .logged(let entry):
+      tellPartners(partners, title: "\(snapshot.me) logged \(entry.kind.title.lowercased())",
+        body: entry.title(unit: snapshot.unit))
+    case .settingsChanged:
+      wake(partners)
+    }
+  }
+
+  /// A silent push so the partner's phone syncs in the background right now, without waiting for
+  /// iOS to get round to CloudKit's own push.
+  private func wake(_ partners: [DeviceToken]) {
+    for device in partners {
+      guard let token = device.apnsToken else { continue }
+      send(["type": "background", "token": token])
+    }
+  }
+
+  /// A quiet "Yvette logged a diaper" note that also wakes the app to sync. Passive: it lands in
+  /// Notification Center without sound, and is hidden while the app is open.
+  private func tellPartners(_ partners: [DeviceToken], title: String, body: String) {
+    for device in partners {
+      guard let token = device.apnsToken else { continue }
+      send(["type": "activity", "token": token, "title": title, "body": body])
     }
   }
 
