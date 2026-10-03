@@ -126,6 +126,8 @@ public protocol EventStore: Sendable {
 
   // Devices
   func updateDevice(_ update: (inout DeviceToken) -> Void) throws
+  /// Removes other phones' rows from the shared list (stale installs). Never removes this install.
+  func removeDevices(ids: [UUID]) throws
 
   // Reads
   func snapshot(now: Date) throws -> NestedSnapshot
@@ -870,7 +872,8 @@ public struct LiveEventStore: EventStore {
         update(&device)
         device.ownerName = owner()
         device.babyID = baby.id
-        guard device != before else { return }
+        // Unchanged rows still get a fresh "last seen" every few hours.
+        guard device != before || now().timeIntervalSince(device.updatedAt) > 6 * 3600 else { return }
         device.updatedAt = now()
         try DeviceToken.update(device).execute(db)
       } else {
@@ -880,6 +883,14 @@ public struct LiveEventStore: EventStore {
           updatedAt: now())
         update(&device)
         try DeviceToken.insert { device }.execute(db)
+      }
+    }
+  }
+
+  public func removeDevices(ids: [UUID]) throws {
+    try database.write { db in
+      for id in ids where id != deviceID {
+        try DeviceToken.find(id).delete().execute(db)
       }
     }
   }
@@ -922,7 +933,7 @@ public struct LiveEventStore: EventStore {
 
   public func snapshot(now date: Date) throws -> NestedSnapshot {
     try database.read { db in
-      try SnapshotBuilder.build(db, me: owner(), now: date, calendar: calendar)
+      try SnapshotBuilder.build(db, me: owner(), deviceID: deviceID, now: date, calendar: calendar)
     }
   }
 

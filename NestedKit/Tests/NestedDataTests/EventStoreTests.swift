@@ -482,3 +482,56 @@ struct MedicationStoreTests {
     #expect(try store.medications().isEmpty && (try store.doses(since: .distantPast)).isEmpty)
   }
 }
+
+@Suite("Devices", .serialized)
+struct DeviceListTests {
+  @Test("A stale row from an old install is listed, can be removed, and this install can't be")
+  func removeStaleDevice() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(owner: "Ben", clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    try store.updateDevice { _ in }
+
+    // An earlier install of the same person, under the name they used then.
+    let staleID = UUID()
+    let stale = LiveEventStore(
+      database: store.database, owner: { "Bennett" }, deviceID: staleID, now: { clock.now }, calendar: utc)
+    try stale.updateDevice { _ in }
+
+    var snapshot = try store.snapshot(now: clock.now)
+    #expect(snapshot.otherDevices.map(\.id) == [staleID])
+
+    try store.removeDevices(ids: [staleID, store.deviceID])
+    snapshot = try store.snapshot(now: clock.now)
+    #expect(snapshot.otherDevices.isEmpty)
+    #expect(snapshot.devices.map(\.id) == [store.deviceID])
+  }
+
+  @Test("My own rows never count as a partner, whatever the case or spacing of my name")
+  func ownRowsAreNotPartners() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(owner: "Bennett", clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    let other = LiveEventStore(
+      database: store.database, owner: { " bennett " }, deviceID: UUID(), now: { clock.now }, calendar: utc)
+    try other.updateDevice { _ in }
+    try store.updateDevice { _ in }
+    let snapshot = try store.snapshot(now: clock.now)
+    #expect(snapshot.devices.count == 2)
+    #expect(snapshot.otherDevices.isEmpty)
+  }
+
+  @Test("Last seen refreshes after a few hours even when nothing else changed")
+  func lastSeenRefreshes() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(owner: "Yvette", clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    try store.updateDevice { _ in }
+    clock.now = t(11)
+    try store.updateDevice { _ in }
+    #expect(try store.snapshot(now: clock.now).devices.first?.updatedAt == t(10))
+    clock.now = t(17)
+    try store.updateDevice { _ in }
+    #expect(try store.snapshot(now: clock.now).devices.first?.updatedAt == t(17))
+  }
+}

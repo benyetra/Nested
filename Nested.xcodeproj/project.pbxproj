@@ -79,6 +79,7 @@
 		E312B6AFE0DC9D250D208CF6 /* StatusProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 38509F1FDE96205E90E77E92 /* StatusProvider.swift */; };
 		E4B774F8EA904C18D86F6F54 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 060514F2A3D3668B3136DF5A /* Assets.xcassets */; };
 		ED95CC17300B1FD98E938771 /* QuestionEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A903AE065D7EE4F6FAD9374 /* QuestionEditor.swift */; };
+		EF464E73F140B00C0CA41D8D /* IdentityBackup.swift in Sources */ = {isa = PBXBuildFile; fileRef = DC2BFCC1566376F0F7915969 /* IdentityBackup.swift */; };
 		F0A44E9A03954EA6B0AAE865 /* EventStyle.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1C333F36C3664DC977CB861 /* EventStyle.swift */; };
 		F0EDB060D1CFE3580DE67D1A /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 28FE6CB74F1AD6D124406D45 /* SettingsView.swift */; };
 		F48025A17886271C581743D3 /* AvatarEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9082ACD2344E74D310120FE0 /* AvatarEditor.swift */; };
@@ -208,6 +209,7 @@
 		D2021320DE439586EB97AA4D /* NestedWidgets.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = NestedWidgets.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D5DBE0665BFA54156AFA31A1 /* MedicationReminderService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MedicationReminderService.swift; sourceTree = "<group>"; };
 		D8E31E44A4EB11FADAD9E847 /* NestedApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NestedApp.swift; sourceTree = "<group>"; };
+		DC2BFCC1566376F0F7915969 /* IdentityBackup.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IdentityBackup.swift; sourceTree = "<group>"; };
 		DF3C7A78D7BC4D22DFB905CE /* InsightViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InsightViews.swift; sourceTree = "<group>"; };
 		E434350A0E2EEBAD1CD31714 /* IntentEnums.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IntentEnums.swift; sourceTree = "<group>"; };
 		E4F312FB9324411FA43A7207 /* LogSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LogSheet.swift; sourceTree = "<group>"; };
@@ -297,6 +299,7 @@
 			children = (
 				273871A24D508E4702499DCD /* AlarmTestIntents.swift */,
 				79F9BD97C280ED48E577A9B3 /* FeedAlarmService.swift */,
+				DC2BFCC1566376F0F7915969 /* IdentityBackup.swift */,
 				3A124C5ADDDD98E82C9570F6 /* LiveActivityService.swift */,
 				D5DBE0665BFA54156AFA31A1 /* MedicationReminderService.swift */,
 				1E5C0B3CB118AFA28201C6AC /* NotificationService.swift */,
@@ -773,6 +776,7 @@
 				578000FB9C0DA904D4B51645 /* EventStyle.swift in Sources */,
 				519E4A1427A5D6A7CCD0168B /* FeedAlarmService.swift in Sources */,
 				C77876485A799246823222E9 /* HuckleberryImportSheet.swift in Sources */,
+				EF464E73F140B00C0CA41D8D /* IdentityBackup.swift in Sources */,
 				19EB1CF02C26EF90DF485BFA /* InsightViews.swift in Sources */,
 				DD60D91245BED301F5D5E27B /* IntentEnums.swift in Sources */,
 				92D1A97DC287049254ABB855 /* LiveActivityService.swift in Sources */,

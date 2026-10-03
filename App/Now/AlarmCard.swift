@@ -91,8 +91,7 @@ struct AlarmCard: View {
   private func deviceRows(fireAt: Date, setBy: String) -> [DeviceRow] {
     guard let baby = snapshot.baby else { return [] }
     // (owner, armed-for, alarm permission) for every phone, this one from live state.
-    var phones = snapshot.devices
-      .filter { $0.ownerName != snapshot.me }
+    var phones = snapshot.otherDevices
       .map { (name: $0.ownerName, armedFor: $0.alarmArmedFor, authorized: $0.alarmAuthorized) }
     phones.insert((name: snapshot.me, armedFor: alarmService.armedFor, authorized: !alarmService.isDenied), at: 0)
     return phones.map { phone in

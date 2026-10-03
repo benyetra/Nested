@@ -75,6 +75,7 @@ final class AppModel {
     let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
     DevicePrefs.ownerName = trimmed
     ownerName = trimmed
+    IdentityBackup.mirror()
   }
 
   // MARK: Writes

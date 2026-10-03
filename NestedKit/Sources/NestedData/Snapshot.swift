@@ -63,6 +63,9 @@ public struct NestedSnapshot: Hashable, Sendable {
   /// The last two weeks of doses, newest first.
   public var medicationDoses: [MedicationDose] = []
 
+  /// This install's `DeviceToken` row id, so it is never listed as someone else's phone.
+  public var myDeviceID: UUID?
+
   public static let empty = NestedSnapshot(
     baby: nil, me: "", generatedAt: .distantPast, history: History(), lastFeed: nil,
     lastBottle: nil, lastDiaper: nil, lastSleep: nil, activeNursing: nil, activePump: nil,
@@ -106,8 +109,16 @@ public struct NestedSnapshot: Hashable, Sendable {
     return feedAlarm
   }
 
+  /// Phones that belong to someone else. A phone is mine if it's this install or carries my name
+  /// (compared ignoring case and spaces), so a stale row from an earlier install of mine is not a
+  /// "partner".
   public var otherDevices: [DeviceToken] {
-    devices.filter { $0.ownerName != me }
+    let mine = Self.normalized(me)
+    return devices.filter { $0.id != myDeviceID && (mine.isEmpty || Self.normalized($0.ownerName) != mine) }
+  }
+
+  static func normalized(_ name: String) -> String {
+    name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
   }
 }
 
@@ -115,7 +126,9 @@ public enum SnapshotBuilder {
   /// Days of history loaded for predictions and flags.
   public static let historyDays = 14
 
-  public static func build(_ db: Database, me: String, now: Date, calendar: Calendar) throws -> NestedSnapshot {
+  public static func build(
+    _ db: Database, me: String, deviceID: UUID = DevicePrefs.deviceID, now: Date, calendar: Calendar
+  ) throws -> NestedSnapshot {
     guard let baby = try LiveEventStore.currentBaby(db) else {
       var empty = NestedSnapshot.empty
       empty.me = me
@@ -178,7 +191,7 @@ public enum SnapshotBuilder {
     let medicationDoses = try MedicationDose.where { $0.babyID.eq(baby.id) && $0.takenAt.gte(doseSince) }
       .order { $0.takenAt.desc() }.fetchAll(db)
 
-    return NestedSnapshot(
+    var snapshot = NestedSnapshot(
       baby: baby,
       me: me,
       generatedAt: now,
@@ -203,5 +216,7 @@ public enum SnapshotBuilder {
       medications: medications,
       medicationDoses: medicationDoses
     )
+    snapshot.myDeviceID = deviceID
+    return snapshot
   }
 }

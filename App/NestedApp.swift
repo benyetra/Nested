@@ -12,6 +12,8 @@ struct NestedApp: App {
   @State private var model: AppModel
 
   init() {
+    // Before anything reads DevicePrefs: bring back this phone's identity after a reinstall.
+    IdentityBackup.restore()
     @Dependency(\.context) var context
     let database: any DatabaseWriter
     if context == .live {
@@ -27,6 +29,7 @@ struct NestedApp: App {
     _model = State(initialValue: AppModel(store: store))
     SideEffects.shared.start(store: store)
     SyncCoordinator.shared.observeExtensionWrites()
+    IdentityBackup.mirror()
   }
 
   var body: some Scene {

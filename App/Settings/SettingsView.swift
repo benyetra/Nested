@@ -20,6 +20,7 @@ struct SettingsView: View {
   @State private var importingHuckleberry = false
   @State private var confirmingDeleteAll = false
   @State private var isSharing = false
+  @State private var partnerToRemove: Partner?
 
   var body: some View {
     NavigationStack {
@@ -158,6 +159,15 @@ struct SettingsView: View {
       }
     } message: {
       Text("This removes \(baby.name.isEmpty ? "the baby" : baby.name) and every entry from this phone, iCloud and your partner's phone. It can't be undone.")
+    }
+    .confirmationDialog(
+      "Remove \(partnerToRemove?.name ?? "this phone")?",
+      isPresented: Binding(get: { partnerToRemove != nil }, set: { if !$0 { partnerToRemove = nil } }),
+      titleVisibility: .visible, presenting: partnerToRemove
+    ) { partner in
+      Button("Remove from list", role: .destructive) { removePartner(partner) }
+    } message: { _ in
+      Text("Their entries stay. If it's a real phone, it shows up again the next time Nested opens there.")
     }
   }
 
@@ -310,6 +320,7 @@ struct SettingsView: View {
     let name: String
     let lastSeen: Date
     let alarmsOn: Bool
+    let deviceIDs: [UUID]
     var id: String { name }
   }
 
@@ -320,7 +331,7 @@ struct SettingsView: View {
       .map { name, devices in
         Partner(
           name: name, lastSeen: devices.map(\.updatedAt).max() ?? .distantPast,
-          alarmsOn: devices.contains { $0.alarmAuthorized })
+          alarmsOn: devices.contains { $0.alarmAuthorized }, deviceIDs: devices.map(\.id))
       }
       .sorted { $0.name < $1.name }
   }
@@ -367,6 +378,11 @@ struct SettingsView: View {
               .accessibilityLabel("Joined")
           }
           .padding(.vertical, 2)
+          .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+            Button("Remove", systemImage: "person.crop.circle.badge.minus", role: .destructive) {
+              partnerToRemove = partner
+            }
+          }
         }
         Button {
           share(baby)
@@ -380,8 +396,17 @@ struct SettingsView: View {
       } header: {
         Text("Partner")
       } footer: {
-        Text("You both log to the same record and see each other's entries within seconds. Everything stays in your iCloud.")
+        Text("You both log to the same record and see each other's entries within seconds. Everything stays in your iCloud. See a phone that isn't a partner, like an old install of this app? Swipe it left to remove it.")
       }
+    }
+  }
+
+  private func removePartner(_ partner: Partner) {
+    do {
+      try model.store.removeDevices(ids: partner.deviceIDs)
+      model.showToast("Removed \(partner.name.isEmpty ? "phone" : partner.name)")
+    } catch {
+      model.errorMessage = "Couldn't remove it: \(error)"
     }
   }
 
