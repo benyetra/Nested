@@ -55,39 +55,36 @@ enum SummaryService {
   }
 
   #if canImport(FoundationModels)
-    @Generable(description: "A short briefing for a newborn's parents")
+    @Generable(description: "A short summary for a newborn's parents")
     struct GeneratedBriefing {
-      @Guide(description: "One warm sentence summing up how the baby is doing")
-      var headline: String
-      @Guide(description: "Each finding marked WORTH RAISING WITH THE PEDIATRICIAN or CHANGE TO WATCH, one short plain sentence each, numbers exactly as given", .count(0...3))
-      var attention: [String]
-      @Guide(description: "Each finding marked GOING WELL, one short sentence each", .count(0...3))
-      var wins: [String]
+      @Guide(description: "One or two short, warm, plain sentences about the most important thing in the facts. Do not list the findings, do not repeat each one, and do not use square brackets.")
+      var summary: String
     }
   #endif
 
-  /// A structured briefing: what to bring to attention first, then what's going well. Facts come
-  /// from `InsightBrief` (capped to stay inside the model's context); the model only phrases them.
+  /// The briefing: a headline from code (so it can't contradict the findings) plus a one or two
+  /// sentence summary the model writes from the facts. The findings themselves are shown as cards
+  /// elsewhere, so the model is told not to list them.
   static func brief(facts: [String], fallback: BriefingContent, babyName: String) async -> BriefingContent {
     #if canImport(FoundationModels)
       guard modelAvailable else { return fallback }
       let session = LanguageModelSession(
         instructions: """
-          You brief the parents of a newborn named \(babyName) from tracked data. Use only the \
-          facts given and keep every number exactly as given. For anything marked WORTH RAISING \
-          WITH THE PEDIATRICIAN, say it is worth mentioning to the pediatrician. Never diagnose, \
-          never recommend treatment or changes to feeding, and never say anything is definitely \
-          fine or definitely wrong. Be warm and brief.
+          You write a very short summary for the parents of a newborn named \(babyName) from tracked \
+          data. Use only the facts given and keep every number exactly as given. Mention at most the \
+          one or two things that matter most, and leave the rest to the detailed list the parents can \
+          already see. If something is marked WORTH RAISING WITH THE PEDIATRICIAN, say it is worth \
+          mentioning to the pediatrician; if nothing is marked that way or as CHANGE TO WATCH, \
+          keep it reassuring. Never diagnose, never recommend treatment or changes to feeding, and \
+          never say anything is definitely fine or definitely wrong. At most two short sentences.
           """)
       let list = facts.prefix(24).map { "- \($0)" }.joined(separator: "\n")
       do {
         let response = try await session.respond(
           to: "Facts:\n\(list)", generating: GeneratedBriefing.self,
-          options: GenerationOptions(temperature: 0.3))
-        let result = response.content
-        let headline = result.headline.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !headline.isEmpty else { return fallback }
-        return BriefingContent(headline: headline, attention: result.attention, wins: result.wins)
+          options: GenerationOptions(temperature: 0.2))
+        guard let text = InsightBrief.cleaned(response.content.summary) else { return fallback }
+        return BriefingContent(headline: fallback.headline, summary: text)
       } catch {
         return fallback
       }

@@ -117,7 +117,7 @@ struct InsightBriefTests {
 
 @Suite("Briefing content")
 struct BriefingContentTests {
-  @Test("Headline reflects severity; lists are capped")
+  @Test("Headline reflects the worst finding; the summary is just counts")
   func content() {
     let items = [
       Insight(id: "a", severity: .attention, topic: .diapers, title: "Low wet", detail: ""),
@@ -125,9 +125,58 @@ struct BriefingContentTests {
     ]
     let c = InsightBrief.fallbackContent(insights: items, babyName: "M")
     #expect(c.headline == "A few things are worth a look.")
-    #expect(c.attention == ["Low wet"])
-    #expect(c.wins == ["Steady"])
+    #expect(c.summary == "1 worth raising with your pediatrician, 1 going well.")
     let calm = InsightBrief.fallbackContent(insights: [items[1]], babyName: "M")
     #expect(calm.headline == "M is doing well.")
+    let watch = InsightBrief.fallbackContent(
+      insights: [Insight(id: "c", severity: .notice, topic: .feeding, title: "x", detail: "")], babyName: "M")
+    #expect(watch.headline == "Mostly steady, with a change or two to watch.")
+  }
+
+  @Test("Leaked fact labels are stripped from model text")
+  func cleaning() {
+    #expect(InsightBrief.cleaned("[WORTH RAISING WITH THE PEDIATRICIAN] Feeds are up.") == "Feeds are up.")
+    #expect(InsightBrief.cleaned("[CHANGE TO WATCH]") == nil)
+  }
+}
+
+@Suite("Feed gap insight")
+struct GapInsightTests {
+  let now = t(day: 20, 12)
+  let birth = t(day: 10, 8)
+
+  /// Feeds every 3 h except for one gap of `gapHours` starting at 21:00 on each of `days`.
+  func history(gapHours: Double, onDays days: [Int]) -> History {
+    var feeds: [FeedRecord] = []
+    for day in 10...19 {
+      var time = t(day: day, 6)
+      while time < t(day: day + 1, 5) {
+        if days.contains(day), utc.component(.hour, from: time) == 21 {
+          feeds.append(bottle(time))
+          time = time.addingTimeInterval(gapHours * 3600)
+        } else {
+          feeds.append(bottle(time))
+          time = time.addingTimeInterval(3 * 3600)
+        }
+      }
+    }
+    return History(feeds: feeds)
+  }
+
+  func gapInsight(_ h: History) -> Insight? {
+    InsightEngine.generate(history: h, birth: birth, now: now, calendar: utc).first { $0.id == "gaps.long" }
+  }
+
+  @Test("A gap ten minutes over the limit isn't flagged")
+  func slightlyOver() {
+    #expect(gapInsight(history(gapHours: 4 + 10.0 / 60, onDays: [18])) == nil)
+  }
+
+  @Test("One clearly long gap is something to watch; repeated ones are worth raising")
+  func clearlyLong() throws {
+    let once = try #require(gapInsight(history(gapHours: 5.5, onDays: [18])))
+    #expect(once.severity == .notice)
+    let twice = try #require(gapInsight(history(gapHours: 5.5, onDays: [17, 18, 19])))
+    #expect(twice.severity == .attention)
   }
 }

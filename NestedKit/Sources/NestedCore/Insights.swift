@@ -158,25 +158,29 @@ public enum InsightEngine {
     return out
   }
 
+  /// A feed gap only counts once it is clearly past the limit (an hour or more), so a gap that is
+  /// ten minutes over doesn't raise a flag. One long gap is worth watching; repeated ones are
+  /// worth raising.
+  static let gapMargin: TimeInterval = 3600
+
   private static func gaps(_ extras: [DayExtras], _ th: FlagThresholds, age: Int?) -> [Insight] {
+    guard (age ?? 0) < 28 else { return [] }
     let recent = extras.suffix(3)
-    guard let worst = recent.max(by: { $0.longestFeedGap < $1.longestFeedGap }),
-      worst.longestFeedGap > 0
-    else { return [] }
+    let limit = th.maxGapNight + gapMargin
+    let long = recent.filter { $0.longestFeedGap > limit }
+    guard let worst = long.max(by: { $0.longestFeedGap < $1.longestFeedGap }) else { return [] }
     let series = extras.suffix(7).map { $0.longestFeedGap / 3600 }
-    if worst.longestFeedGap > th.maxGapNight, (age ?? 0) < 28 {
-      let gap = Durations.format(worst.longestFeedGap)
-      return [
-        Insight(
-          id: "gaps.long", severity: .attention, topic: .feeding,
-          title: "A long stretch without a feed",
-          detail:
-            "One gap reached \(gap), longer than your \(Durations.format(th.maxGapNight)) limit. Young babies often need waking to feed in the first weeks. Ask your pediatrician what's right for her.",
-          metric: gap, series: series,
-          doctorQuestion: "She went \(gap) between feeds. Should we wake her to feed at night?")
-      ]
-    }
-    return []
+    let gap = Durations.format(worst.longestFeedGap)
+    let repeated = long.count >= 2
+    return [
+      Insight(
+        id: "gaps.long", severity: repeated ? .attention : .notice, topic: .feeding,
+        title: repeated ? "Long stretches without a feed" : "A long stretch without a feed",
+        detail:
+          "\(repeated ? "Gaps reached" : "One gap reached") \(gap), well past your \(Durations.format(th.maxGapNight)) limit. Young babies often need waking to feed in the first weeks, so it's worth asking your pediatrician what's right for her.",
+        metric: gap, series: series,
+        doctorQuestion: "She went \(gap) between feeds. Should we wake her to feed at night?")
+    ]
   }
 
   private static func nursing(
@@ -479,23 +483,36 @@ public enum InsightBrief {
     }
   }
 
-  /// Structured briefing used when the model is unavailable.
+  /// The briefing's headline always comes from code, so it can never contradict the findings; the
+  /// summary is plain counts here and a model-written sentence or two when one is available.
   public static func fallbackContent(insights: [Insight], babyName: String) -> BriefingContent {
     let real = insights.filter { $0.topic != .data }
     guard !real.isEmpty else {
       return BriefingContent(headline: "Keep logging and \(babyName)'s patterns will show up here.")
     }
-    let attention = real.filter { $0.severity <= .notice }.prefix(3).map(\.title)
-    let wins = real.filter { $0.severity == .good }.prefix(3).map(\.title)
+    let attention = real.filter { $0.severity == .attention }.count
+    let notices = real.filter { $0.severity == .notice }.count
+    let good = real.filter { $0.severity == .good }.count
     let headline: String
-    if real.contains(where: { $0.severity == .attention }) {
+    if attention > 0 {
       headline = "A few things are worth a look."
-    } else if attention.isEmpty {
-      headline = "\(babyName) is doing well."
-    } else {
+    } else if notices > 0 {
       headline = "Mostly steady, with a change or two to watch."
+    } else {
+      headline = "\(babyName) is doing well."
     }
-    return BriefingContent(headline: headline, attention: Array(attention), wins: Array(wins))
+    var parts: [String] = []
+    if attention > 0 { parts.append("\(attention) worth raising with your pediatrician") }
+    if notices > 0 { parts.append("\(notices) to watch") }
+    if good > 0 { parts.append("\(good) going well") }
+    return BriefingContent(headline: headline, summary: parts.isEmpty ? nil : parts.joined(separator: ", ") + ".")
+  }
+
+  /// Model text with any leaked fact labels removed; nil if nothing sensible is left.
+  public static func cleaned(_ text: String) -> String? {
+    let stripped = text.replacingOccurrences(of: "\\[[^\\]]*\\]", with: "", options: .regularExpression)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    return stripped.isEmpty ? nil : stripped
   }
 
   /// Plain-text briefing used when the model is unavailable.
@@ -519,15 +536,14 @@ public enum InsightBrief {
   }
 }
 
-/// The briefing as shown on the Trends card: a headline, things to watch, and wins.
+/// The briefing as shown on the Trends card: a headline from code and a short summary. The
+/// individual findings are the cards below it, so the briefing never lists them again.
 public struct BriefingContent: Hashable, Sendable {
   public var headline: String
-  public var attention: [String]
-  public var wins: [String]
+  public var summary: String?
 
-  public init(headline: String, attention: [String] = [], wins: [String] = []) {
+  public init(headline: String, summary: String? = nil) {
     self.headline = headline
-    self.attention = attention
-    self.wins = wins
+    self.summary = summary
   }
 }

@@ -229,15 +229,8 @@ struct TrendsView: View {
         VStack(alignment: .leading, spacing: 8) {
           Label("Briefing", systemImage: "sparkles").font(.headline).foregroundStyle(.purple)
           Text(briefing.headline).font(.callout.weight(.semibold))
-          ForEach(briefing.attention, id: \.self) { line in
-            Label(line, systemImage: "exclamationmark.circle.fill")
-              .font(.callout).foregroundStyle(.primary)
-              .symbolRenderingMode(.multicolor)
-          }
-          ForEach(briefing.wins, id: \.self) { line in
-            Label(line, systemImage: "checkmark.circle.fill")
-              .font(.callout).foregroundStyle(.primary)
-              .symbolRenderingMode(.multicolor)
+          if let summary = briefing.summary {
+            Text(summary).font(.callout)
           }
           if SummaryService.modelAvailable {
             Button { asking = true } label: {
