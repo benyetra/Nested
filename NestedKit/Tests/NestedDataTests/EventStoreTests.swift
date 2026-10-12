@@ -22,13 +22,30 @@ func t(day: Int = 20, _ hour: Int, _ minute: Int = 0) -> Date {
   utc.date(from: DateComponents(year: 2026, month: 9, day: day, hour: hour, minute: minute))!
 }
 
+/// Every defaults suite the tests create. `DevicePrefs.defaults` is one global that parallel suites
+/// replace; keeping each old value alive means a reader on another thread can never touch freed
+/// memory while a writer swaps it.
+private let defaultsKeepAlive = LockedArray<UserDefaults>()
+
+private final class LockedArray<Element>: @unchecked Sendable {
+  private let lock = NSLock()
+  private var items: [Element] = []
+  func append(_ item: Element) {
+    lock.lock()
+    items.append(item)
+    lock.unlock()
+  }
+}
+
 /// Store over an in-memory database with a named owner and controllable clock.
 func makeStore(
   owner: String = "Bennett",
   clock: TestClock,
   database: (any DatabaseWriter)? = nil
 ) throws -> LiveEventStore {
-  DevicePrefs.defaults = UserDefaults(suiteName: "nested-tests-\(UUID().uuidString)")!
+  let defaults = UserDefaults(suiteName: "nested-tests-\(UUID().uuidString)")!
+  defaultsKeepAlive.append(defaults)
+  DevicePrefs.defaults = defaults
   let db = try database ?? NestedDatabase.openInMemory()
   return LiveEventStore(database: db, owner: { owner }, now: { clock.now }, calendar: utc)
 }
