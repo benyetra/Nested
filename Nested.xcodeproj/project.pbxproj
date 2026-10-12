@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B2E4F6081A2C3D5E7F901B23 /* DevelopmentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D3E5F7091B2C4D6E8F0A12 /* DevelopmentViews.swift */; };
 		004923A9844E4659B3FE21C7 /* NestedCore in Frameworks */ = {isa = PBXBuildFile; productRef = 09F88C5B2DCC117857E8B6A3 /* NestedCore */; };
 		03E9D5A635D26C9E0F23333E /* Controls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B15FD65BE72BF5DAEBB58 /* Controls.swift */; };
 		060E77EC0B55291AF611CA81 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 928CED87F98B6BDC315D4C44 /* Assets.xcassets */; };
@@ -153,6 +154,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		A1D3E5F7091B2C4D6E8F0A12 /* DevelopmentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopmentViews.swift; sourceTree = "<group>"; };
 		00F45F33AE54D87F0382834B /* EntryEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryEditor.swift; sourceTree = "<group>"; };
 		060514F2A3D3668B3136DF5A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		08ECE97C6AFFCA42E57C6A04 /* QuestionsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuestionsView.swift; sourceTree = "<group>"; };
@@ -261,6 +263,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		C3F507192B3D4E6F81A02C34 /* Development */ = {
+			isa = PBXGroup;
+			children = (
+				A1D3E5F7091B2C4D6E8F0A12 /* DevelopmentViews.swift */,
+			);
+			path = Development;
+			sourceTree = "<group>";
+		};
 		01D3827676F405168AF88B8F = {
 			isa = PBXGroup;
 			children = (
@@ -336,6 +346,7 @@
 			children = (
 				D1D5C11DFF5A1EE3F74DD859 /* Avatars */,
 				CC164C265E169839052DDF7B /* Design */,
+				C3F507192B3D4E6F81A02C34 /* Development */,
 				E895F6D43B180FE80793ED9F /* Intents */,
 				E0F127FBAD6ACF68BAAEBAEB /* Log */,
 				EC3F86FFFBFD94E7E5C15F72 /* Medications */,
@@ -794,6 +805,7 @@
 				4C64C726FF198DDF9C30EE4D /* PartnerPushService.swift in Sources */,
 				ED95CC17300B1FD98E938771 /* QuestionEditor.swift in Sources */,
 				BCE975F72FC8A3F67093A8ED /* QuestionsView.swift in Sources */,
+				B2E4F6081A2C3D5E7F901B23 /* DevelopmentViews.swift in Sources */,
 				413F3D3A79CB0D5A3046C61D /* ReportRenderer.swift in Sources */,
 				6CB94683150335A2D2821FEB /* RichTextBridge.swift in Sources */,
 				3A7637EF9E344DC390DB976D /* RootView.swift in Sources */,

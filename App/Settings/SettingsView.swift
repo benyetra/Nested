@@ -12,6 +12,7 @@ struct SettingsView: View {
   @AppStorage(NotificationService.feedReminderKey) private var feedReminders = false
   @State private var nightMode = DevicePrefs.nightMode
   @State private var ownerName = DevicePrefs.ownerName
+  @State private var dueDate = DevicePrefs.dueDate
   @State private var sharedRecord: SharedRecord?
   @State private var reportDays = 14
   @State private var reportURL: URL?
@@ -57,6 +58,17 @@ struct SettingsView: View {
           "Birth date",
           selection: Binding(get: { baby.birthDate ?? Date() }, set: { date in save(baby) { $0.birthDate = date } }),
           in: ...Date(), displayedComponents: .date)
+        if let due = dueDate {
+          DatePicker("Due date", selection: Binding(get: { due }, set: { dueDate = $0; DevicePrefs.dueDate = $0 }),
+            displayedComponents: .date)
+          Button("Born on time", role: .destructive) { dueDate = nil; DevicePrefs.dueDate = nil }
+        } else {
+          Button("Born early? Add the due date") {
+            let date = baby.birthDate.map { $0.addingTimeInterval(28 * 86_400) } ?? Date()
+            dueDate = date
+            DevicePrefs.dueDate = date
+          }
+        }
         Picker("Feeding", selection: bind(baby, \.feedingMode)) {
           ForEach(FeedingMode.allCases, id: \.self) { Text($0.title).tag($0) }
         }

@@ -14,6 +14,7 @@ public struct DevicePrefs: Sendable {
     static let deviceID = "deviceID"
     static let babyID = "babyID"
     static let nightMode = "nightMode"
+    static let dueDate = "dueDate"
     static let lastLiveActivityPush = "lastLiveActivityPush"
   }
 
@@ -41,6 +42,13 @@ public struct DevicePrefs: Sendable {
   public static var nightMode: NightModeSetting {
     get { defaults.string(forKey: Key.nightMode).flatMap(NightModeSetting.init(rawValue:)) ?? .automatic }
     set { defaults.set(newValue.rawValue, forKey: Key.nightMode) }
+  }
+
+  /// Original due date, only used to adjust development milestones for a baby born early.
+  /// Kept on the device (not synced) so it needs no database change.
+  public static var dueDate: Date? {
+    get { defaults.object(forKey: Key.dueDate) as? Date }
+    set { defaults.set(newValue, forKey: Key.dueDate) }
   }
 
   /// Initial for the Timeline badge: "B", "Y".

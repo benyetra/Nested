@@ -8,6 +8,7 @@ import SwiftUI
 struct NowView: View {
   @Environment(AppModel.self) private var model
   private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
+  @State private var showingDevelopment = false
 
   var body: some View {
     NavigationStack {
@@ -20,6 +21,7 @@ struct NowView: View {
             predictions(now: context.date)
             AlarmCard(snapshot: snapshot, now: context.date)
             totalsRow
+            developmentCard(now: context.date)
           }
           .padding(.horizontal)
           .padding(.bottom, 24)
@@ -30,6 +32,11 @@ struct NowView: View {
       .actionBarInset(tab: .now)
       // A real navigation bar, so content scrolls under a proper edge effect instead of
       // colliding with the status bar.
+      .sheet(isPresented: $showingDevelopment) {
+        if let age = DevelopmentAge(birth: snapshot.baby?.birthDate) {
+          DevelopmentSheet(name: snapshot.babyName, age: age)
+        }
+      }
       .navigationTitle(snapshot.babyName)
       .navigationSubtitle(ageText)
       .toolbar {
@@ -45,6 +52,13 @@ struct NowView: View {
 
   private var ageText: String {
     snapshot.baby?.birthDate.map { AgeMath.label(birth: $0, now: Date()) } ?? ""
+  }
+
+  @ViewBuilder
+  private func developmentCard(now: Date) -> some View {
+    if let age = DevelopmentAge(birth: snapshot.baby?.birthDate, now: now), !DevelopmentGuide.isBeyond(ageDays: age.days) {
+      DevelopmentCard(name: snapshot.babyName, age: age) { showingDevelopment = true }
+    }
   }
 
   @ViewBuilder
