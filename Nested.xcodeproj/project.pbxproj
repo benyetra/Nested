@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		A7D9E1F3B5C7D9E1F3A5B7C9 /* DurationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6C8D0E2A4B6C8D0E2F4A6B8 /* DurationEditor.swift */; };
 		E5B7C9D1F3A5B7C9D1E3F5A7 /* MissingDataCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A6B8C0E2F4A6B8C0D2E4F6 /* MissingDataCard.swift */; };
 		B2E4F6081A2C3D5E7F901B23 /* DevelopmentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D3E5F7091B2C4D6E8F0A12 /* DevelopmentViews.swift */; };
 		004923A9844E4659B3FE21C7 /* NestedCore in Frameworks */ = {isa = PBXBuildFile; productRef = 09F88C5B2DCC117857E8B6A3 /* NestedCore */; };
@@ -155,6 +156,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		F6C8D0E2A4B6C8D0E2F4A6B8 /* DurationEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationEditor.swift; sourceTree = "<group>"; };
 		D4A6B8C0E2F4A6B8C0D2E4F6 /* MissingDataCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissingDataCard.swift; sourceTree = "<group>"; };
 		A1D3E5F7091B2C4D6E8F0A12 /* DevelopmentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopmentViews.swift; sourceTree = "<group>"; };
 		00F45F33AE54D87F0382834B /* EntryEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryEditor.swift; sourceTree = "<group>"; };
@@ -422,6 +424,7 @@
 			children = (
 				B780B548695091F36ADF2A6C /* BackdatePicker.swift */,
 				66005C6A1A7C6A547ABA33DE /* Design.swift */,
+				F6C8D0E2A4B6C8D0E2F4A6B8 /* DurationEditor.swift */,
 			);
 			path = Design;
 			sourceTree = "<group>";
@@ -784,6 +787,7 @@
 				7E42D45A2D2609D87B6249BF /* AvatarModel.swift in Sources */,
 				CAB13187C770A9DC0D8D94D6 /* BackdatePicker.swift in Sources */,
 				3F84CB78DFF03B7BBC139098 /* Design.swift in Sources */,
+				A7D9E1F3B5C7D9E1F3A5B7C9 /* DurationEditor.swift in Sources */,
 				24DA720400652D8672F4284F /* DeveloperAlarmView.swift in Sources */,
 				BE6F052D785B256BC5E271A1 /* DoctorView.swift in Sources */,
 				936E5F1ABB079E2D5F52171E /* EntryEditor.swift in Sources */,

@@ -227,8 +227,8 @@ struct NursingSheet: View {
 
         DisclosureGroup("Log a past session instead", isExpanded: $showsPast) {
           VStack(alignment: .leading, spacing: 12) {
-            Stepper("Left \(Int(leftMinutes)) min", value: $leftMinutes, in: 0...90, step: 1)
-            Stepper("Right \(Int(rightMinutes)) min", value: $rightMinutes, in: 0...90, step: 1)
+            DurationEditor(title: "Left", minutes: $leftMinutes, maxMinutes: 60)
+            DurationEditor(title: "Right", minutes: $rightMinutes, maxMinutes: 60)
             Picker("Ended on", selection: $endedOn) {
               ForEach(Side.allCases, id: \.self) { Text($0.title).tag($0) }
             }
@@ -433,7 +433,8 @@ struct PumpSheet: View {
           BackdatePicker(date: $date, label: "Started", tint: EventKind.pump.color)
           DisclosureGroup("Log a past session instead", isExpanded: $showsPast) {
             VStack(alignment: .leading, spacing: 12) {
-              Stepper("\(Int(minutes)) min", value: $minutes, in: 1...90)
+              DurationEditor(title: "Length", minutes: $minutes, maxMinutes: 90, presets: [10, 15, 20, 30],
+                tint: EventKind.pump.color)
               volumeFields
             }
             .padding(.top, 8)

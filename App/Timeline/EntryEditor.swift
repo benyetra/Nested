@@ -161,13 +161,7 @@ private struct NursingFields: View {
     }
     Section("Sides") {
       ForEach(segments.indices, id: \.self) { index in
-        Stepper(value: $minutes[index], in: 0...120) {
-          HStack {
-            Text(segments[index].side.title)
-            Spacer()
-            Text("\(Int(minutes[index])) min").monospacedDigit().foregroundStyle(.secondary)
-          }
-        }
+        DurationEditor(title: segments[index].side.title, minutes: $minutes[index])
         .disabled(segments[index].endedAt == nil)
       }
     }
