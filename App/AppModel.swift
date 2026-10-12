@@ -173,6 +173,36 @@ final class AppModel {
   }
 
   /// Starting a feed while she's asleep offers "End sleep and start feed?" as one tap.
+  /// Logs a suggested entry from the "Missing anything?" card.
+  func add(_ suggestion: MissingSuggestion) {
+    let store = store
+    perform("Added \(suggestion.isFeed ? "feed" : "diaper") for \(suggestion.at.formatted(date: .omitted, time: .shortened))") {
+      switch suggestion.guess {
+      case .nursing(let left, let right):
+        return try store.logNursing(
+          leftSeconds: left, rightSeconds: right, endedOn: right > 0 ? .right : .left, at: suggestion.at, note: "")
+      case .bottle(let ml, let contents):
+        return try store.logBottle(
+          amountMl: ml, contents: contents, offeredMl: nil, formulaBrand: nil, at: suggestion.at, note: "",
+          endSleep: false)
+      case .diaper(let kind):
+        return try store.logDiaper(
+          kind: kind, stoolColor: nil, consistency: nil, size: nil, rash: false, at: suggestion.at, note: "")
+      }
+    }
+  }
+
+  /// Ends timers left running past their limit and says so.
+  func closeStaleTimers(babyName: String) {
+    let store = store
+    Task {
+      let closed = await Task.detached { (try? store.closeStaleTimers(at: Date())) ?? [] }.value
+      guard let first = closed.first else { return }
+      let what = first.kind.title.lowercased()
+      showToast("Ended a forgotten \(what) timer. You can fix the time in Timeline.")
+    }
+  }
+
   func startFeed(title: String, sleepRunning: Bool, _ start: @escaping @MainActor (_ endSleep: Bool) -> Void) {
     if sleepRunning {
       pendingFeed = PendingFeed(title: title, perform: start)

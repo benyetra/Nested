@@ -207,3 +207,27 @@ public enum NursingMath {
     segments.first { $0.endedAt == nil }
   }
 }
+
+/// How long a timer may run before it is assumed to have been forgotten.
+public enum TimerPolicy {
+  /// Longest time on one side.
+  public static let maxNursingSide: TimeInterval = 30 * 60
+  /// A paused feed left paused this long is treated as finished at the pause.
+  public static let maxNursingPause: TimeInterval = 10 * 60
+  public static let maxPump: TimeInterval = 45 * 60
+  public static let maxSleep: TimeInterval = 14 * 3600
+
+  /// When a nursing session asked to end at `requested` should actually end: the open side stops
+  /// at the limit, and a long-paused feed ends at the pause.
+  public static func nursingEnd(
+    session: NursingSession, segments: [NursingSegment], requested: Date
+  ) -> Date {
+    if let open = NursingMath.openSegment(segments) {
+      return min(requested, open.startedAt.addingTimeInterval(maxNursingSide))
+    }
+    if let pausedAt = session.pausedAt, requested.timeIntervalSince(pausedAt) > maxNursingPause {
+      return pausedAt
+    }
+    return requested
+  }
+}

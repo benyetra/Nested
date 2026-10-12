@@ -81,6 +81,9 @@ public protocol EventStore: Sendable {
   /// Ends whichever timers are running (nursing, pump, sleep).
   @discardableResult
   func stopActiveTimers(at date: Date) throws -> [Entry]
+  /// Closes timers that were left running past their limit, ending them at the limit.
+  @discardableResult
+  func closeStaleTimers(at date: Date) throws -> [Entry]
 
   // Editing
   func save(_ entry: Entry) throws
@@ -240,9 +243,10 @@ public struct LiveEventStore: EventStore {
     at date: Date, note: String, endSleep: Bool
   ) throws -> Entry {
     let stamp = now()
-    let entry = try database.write { db in
+    let (entry, autoEnded) = try database.write { db -> (Entry, [Entry]) in
       let baby = try requireBaby(db)
       if endSleep { try endRunningSleep(db, baby: baby, at: date) }
+      let autoEnded = try autoEnd(db, baby: baby, at: date, sleep: false)
       let bottle = Bottle(
         id: UUID(), babyID: baby.id, startedAt: date, amountMl: amountMl, offeredMl: offeredMl,
         contents: contents, formulaBrand: formulaBrand, durationSeconds: nil, loggedBy: owner(),
@@ -254,8 +258,9 @@ public struct LiveEventStore: EventStore {
         try Baby.update(updated).execute(db)
       }
       try autoArm(db, baby: baby, feedStart: date, feedEnd: nil)
-      return Entry.bottle(bottle)
+      return (Entry.bottle(bottle), autoEnded)
     }
+    for ended in autoEnded { onChange(.timerStopped(ended)) }
     onChange(.logged(entry))
     return entry
   }
@@ -370,6 +375,8 @@ public struct LiveEventStore: EventStore {
   ) throws -> Entry {
     var session = session
     var segments = segments
+    // A side never runs longer than the limit, so a timer left on ends where it should have.
+    let date = TimerPolicy.nursingEnd(session: session, segments: segments, requested: date)
     if var open = NursingMath.openSegment(segments) {
       open.endedAt = max(date, open.startedAt)
       try NursingSegment.update(open).execute(db)
@@ -395,8 +402,9 @@ public struct LiveEventStore: EventStore {
     note: String
   ) throws -> Entry {
     let stamp = now()
-    let entry = try database.write { db in
+    let (entry, autoEnded) = try database.write { db -> (Entry, [Entry]) in
       let baby = try requireBaby(db)
+      let autoEnded = try autoEnd(db, baby: baby, at: date, sleep: false)
       let id = UUID()
       // Lay the sides out back to back, ending on `endedOn`.
       let order: [Side] = endedOn == .left ? [.right, .left] : [.left, .right]
@@ -416,8 +424,9 @@ public struct LiveEventStore: EventStore {
       try NursingSession.insert { session }.execute(db)
       for segment in segments { try NursingSegment.insert { segment }.execute(db) }
       try autoArm(db, baby: baby, feedStart: date, feedEnd: cursor)
-      return Entry.nursing(session, segments: segments)
+      return (Entry.nursing(session, segments: segments), autoEnded)
     }
+    for ended in autoEnded { onChange(.timerStopped(ended)) }
     onChange(.logged(entry))
     return entry
   }
@@ -467,33 +476,37 @@ public struct LiveEventStore: EventStore {
     rash: Bool, at date: Date, note: String
   ) throws -> Entry {
     let stamp = now()
-    let entry = try database.write { db in
+    let (entry, autoEnded) = try database.write { db -> (Entry, [Entry]) in
       let baby = try requireBaby(db)
+      let autoEnded = try autoEnd(db, baby: baby, at: date, sleep: true)
       let diaper = Diaper(
         id: UUID(), babyID: baby.id, occurredAt: date, kind: kind,
         stoolColor: kind.hasStool ? stoolColor : nil, consistency: kind.hasStool ? consistency : nil,
         size: size, rash: rash, loggedBy: owner(), note: note, timeZone: timeZone, createdAt: stamp,
         editedAt: stamp)
       try Diaper.insert { diaper }.execute(db)
-      return Entry.diaper(diaper)
+      return (Entry.diaper(diaper), autoEnded)
     }
+    for ended in autoEnded { onChange(.timerStopped(ended)) }
     onChange(.logged(entry))
     return entry
   }
 
   public func startSleep(location: SleepLocation?, at date: Date) throws -> Entry {
     let stamp = now()
-    let (entry, started) = try database.write { db -> (Entry, Bool) in
+    let (entry, started, autoEnded) = try database.write { db -> (Entry, Bool, [Entry]) in
       let baby = try requireBaby(db)
+      let autoEnded = try autoEnd(db, baby: baby, at: date, sleep: false)
       if let running = try SleepSession.where({ $0.babyID.eq(baby.id) && $0.endedAt.is(nil) }).fetchOne(db) {
-        return (.sleep(running), false)
+        return (.sleep(running), false, autoEnded)
       }
       let sleep = SleepSession(
         id: UUID(), babyID: baby.id, startedAt: date, endedAt: nil, location: location,
         loggedBy: owner(), note: "", timeZone: timeZone, createdAt: stamp, editedAt: stamp)
       try SleepSession.insert { sleep }.execute(db)
-      return (.sleep(sleep), true)
+      return (.sleep(sleep), true, autoEnded)
     }
+    for ended in autoEnded { onChange(.timerStopped(ended)) }
     if started { onChange(.timerStarted(entry)) }
     return entry
   }
@@ -896,6 +909,56 @@ public struct LiveEventStore: EventStore {
   }
 
   // MARK: Reads
+
+  /// Ends a nursing timer (and optionally a sleep) left running when something else happens at
+  /// `date`. Only timers that started before `date` are touched, so back-dated entries are safe.
+  func autoEnd(_ db: Database, baby: Baby, at date: Date, sleep: Bool) throws -> [Entry] {
+    var ended: [Entry] = []
+    if case .nursing(let session, let segments)? = try runningNursing(db, baby: baby),
+      session.startedAt < date
+    {
+      ended.append(
+        try finishNursing(db, baby: baby, session: session, segments: segments, at: date, latchNote: nil))
+    }
+    if sleep, let running = try SleepSession.where({ $0.babyID.eq(baby.id) && $0.endedAt.is(nil) }).fetchOne(db),
+      running.startedAt < date, let sleep = try endRunningSleep(db, baby: baby, at: date)
+    {
+      ended.append(.sleep(sleep))
+    }
+    return ended
+  }
+
+  public func closeStaleTimers(at date: Date) throws -> [Entry] {
+    let stopped = try database.write { db -> [Entry] in
+      let baby = try requireBaby(db)
+      var stopped: [Entry] = []
+      if case .nursing(let session, let segments)? = try runningNursing(db, baby: baby),
+        TimerPolicy.nursingEnd(session: session, segments: segments, requested: date) < date
+      {
+        stopped.append(
+          try finishNursing(db, baby: baby, session: session, segments: segments, at: date, latchNote: nil))
+      }
+      if var pump = try PumpSession.where({ $0.babyID.eq(baby.id) && $0.endedAt.is(nil) }).fetchOne(db),
+        date.timeIntervalSince(pump.startedAt) > TimerPolicy.maxPump
+      {
+        pump.endedAt = pump.startedAt.addingTimeInterval(TimerPolicy.maxPump)
+        pump.editedAt = now()
+        try PumpSession.update(pump).execute(db)
+        stopped.append(.pump(pump))
+      }
+      if var sleep = try SleepSession.where({ $0.babyID.eq(baby.id) && $0.endedAt.is(nil) }).fetchOne(db),
+        date.timeIntervalSince(sleep.startedAt) > TimerPolicy.maxSleep
+      {
+        sleep.endedAt = sleep.startedAt.addingTimeInterval(TimerPolicy.maxSleep)
+        sleep.editedAt = now()
+        try SleepSession.update(sleep).execute(db)
+        stopped.append(.sleep(sleep))
+      }
+      return stopped
+    }
+    for entry in stopped { onChange(.timerStopped(entry)) }
+    return stopped
+  }
 
   func runningNursing(_ db: Database, baby: Baby) throws -> Entry? {
     guard

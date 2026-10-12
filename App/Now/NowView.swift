@@ -9,6 +9,7 @@ struct NowView: View {
   @Environment(AppModel.self) private var model
   private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
   @State private var showingDevelopment = false
+  @State private var dismissedMissing = MissingDismissals.load()
 
   var body: some View {
     NavigationStack {
@@ -17,6 +18,7 @@ struct NowView: View {
           VStack(spacing: 14) {
             flagsCard(now: context.date)
             timersSection(now: context.date)
+            missingCard(now: context.date)
             statusTiles(now: context.date)
             predictions(now: context.date)
             AlarmCard(snapshot: snapshot, now: context.date)
@@ -52,6 +54,23 @@ struct NowView: View {
 
   private var ageText: String {
     snapshot.baby?.birthDate.map { AgeMath.label(birth: $0, now: Date()) } ?? ""
+  }
+
+  @ViewBuilder
+  private func missingCard(now: Date) -> some View {
+    // Hold off while a timer is running; the log is mid-update.
+    let found = snapshot.hasRunningTimer || snapshot.baby == nil ? [] : MissingDataDetector.suggestions(
+      history: snapshot.history, now: now, night: snapshot.baby?.nightWindow ?? .defaultNight,
+      dismissed: dismissedMissing)
+    if !found.isEmpty {
+      MissingDataCard(
+        suggestions: found, unit: snapshot.unit,
+        add: { model.add($0) },
+        dismiss: { item in
+          MissingDismissals.add(item.id)
+          withNestedAnimation(Motion.standard) { dismissedMissing.insert(item.id) }
+        })
+    }
   }
 
   @ViewBuilder

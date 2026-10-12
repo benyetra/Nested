@@ -22,6 +22,7 @@ struct RootView: View {
         while !Task.isCancelled {
           try? await Task.sleep(for: .seconds(60))
           now = Date()
+          model.closeStaleTimers(babyName: snapshot.babyName)
         }
       }
     .sheet(item: $model.editing) { entry in
@@ -43,6 +44,7 @@ struct RootView: View {
       Text(model.errorMessage ?? "")
     }
     // Haptic, visual and state change on the same frame.
+    .task { model.closeStaleTimers(babyName: snapshot.babyName) }
     .task {
       // Explain setup problems (e.g. a missing capability) instead of crashing at launch.
       if let problem = NestedBootstrap.problems.first, model.errorMessage == nil {

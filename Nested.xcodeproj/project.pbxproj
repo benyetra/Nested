@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		E5B7C9D1F3A5B7C9D1E3F5A7 /* MissingDataCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A6B8C0E2F4A6B8C0D2E4F6 /* MissingDataCard.swift */; };
 		B2E4F6081A2C3D5E7F901B23 /* DevelopmentViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1D3E5F7091B2C4D6E8F0A12 /* DevelopmentViews.swift */; };
 		004923A9844E4659B3FE21C7 /* NestedCore in Frameworks */ = {isa = PBXBuildFile; productRef = 09F88C5B2DCC117857E8B6A3 /* NestedCore */; };
 		03E9D5A635D26C9E0F23333E /* Controls.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F4B15FD65BE72BF5DAEBB58 /* Controls.swift */; };
@@ -154,6 +155,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		D4A6B8C0E2F4A6B8C0D2E4F6 /* MissingDataCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissingDataCard.swift; sourceTree = "<group>"; };
 		A1D3E5F7091B2C4D6E8F0A12 /* DevelopmentViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevelopmentViews.swift; sourceTree = "<group>"; };
 		00F45F33AE54D87F0382834B /* EntryEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EntryEditor.swift; sourceTree = "<group>"; };
 		060514F2A3D3668B3136DF5A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -410,6 +412,7 @@
 			children = (
 				777115F84D94225BC9F47957 /* AlarmCard.swift */,
 				565A179D159ED5DBEA273C71 /* NowView.swift */,
+				D4A6B8C0E2F4A6B8C0D2E4F6 /* MissingDataCard.swift */,
 			);
 			path = Now;
 			sourceTree = "<group>";
@@ -801,6 +804,7 @@
 				07AE9D98C54F62F8AF91244C /* NestedTimerAttributes.swift in Sources */,
 				1E42838A51DE81667BF4DBF3 /* NotificationService.swift in Sources */,
 				CEFE9EE769FC9C22F34004B7 /* NowView.swift in Sources */,
+				E5B7C9D1F3A5B7C9D1E3F5A7 /* MissingDataCard.swift in Sources */,
 				AA5C1BD0E8575FB821DF2141 /* OnboardingView.swift in Sources */,
 				4C64C726FF198DDF9C30EE4D /* PartnerPushService.swift in Sources */,
 				ED95CC17300B1FD98E938771 /* QuestionEditor.swift in Sources */,

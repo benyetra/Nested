@@ -535,3 +535,90 @@ struct DeviceListTests {
     #expect(try store.snapshot(now: clock.now).devices.first?.updatedAt == t(17))
   }
 }
+
+@Suite("Forgotten timers", .serialized)
+struct ForgottenTimerTests {
+  func make() throws -> (LiveEventStore, TestClock) {
+    let clock = TestClock(t(10))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    return (store, clock)
+  }
+
+  func nursingEnd(_ store: LiveEventStore) throws -> (end: Date?, left: TimeInterval) {
+    let entries = try store.entries(from: .distantPast, to: .distantFuture)
+    for case .nursing(let session, let segments) in entries {
+      return (session.endedAt, NursingMath.sideTotals(segments, now: t(23)).left)
+    }
+    return (nil, 0)
+  }
+
+  @Test("Stopping a feed that ran past 30 minutes on a side ends it at 30")
+  func stopCapsSide() throws {
+    let (store, _) = try make()
+    try store.startNursing(side: .left, at: t(8), endSleep: false)
+    try store.stopNursing(at: t(9, 30), latchNote: nil)
+    let result = try nursingEnd(store)
+    #expect(result.end == t(8, 30))
+    #expect(result.left == 1800)
+  }
+
+  @Test("A diaper change ends a nursing timer left running, at the limit")
+  func diaperEndsNursing() throws {
+    let (store, _) = try make()
+    try store.startNursing(side: .left, at: t(8), endSleep: false)
+    try store.logDiaper(kind: .wet, stoolColor: nil, consistency: nil, size: nil, rash: false, at: t(9), note: "")
+    #expect(try store.snapshot(now: t(9)).activeNursing == nil)
+    #expect(try nursingEnd(store).end == t(8, 30))
+  }
+
+  @Test("A diaper soon after the feed starts ends it at the diaper time")
+  func diaperEndsNursingEarly() throws {
+    let (store, _) = try make()
+    try store.startNursing(side: .left, at: t(8), endSleep: false)
+    try store.logDiaper(kind: .wet, stoolColor: nil, consistency: nil, size: nil, rash: false, at: t(8, 12), note: "")
+    #expect(try nursingEnd(store).end == t(8, 12))
+  }
+
+  @Test("A diaper ends a sleep timer left running")
+  func diaperEndsSleep() throws {
+    let (store, _) = try make()
+    try store.startSleep(location: nil, at: t(8))
+    try store.logDiaper(kind: .dirty, stoolColor: nil, consistency: nil, size: nil, rash: false, at: t(9), note: "")
+    let snapshot = try store.snapshot(now: t(9))
+    #expect(snapshot.activeSleep == nil)
+    #expect(snapshot.lastSleep?.endedAt == t(9))
+  }
+
+  @Test("A back-dated diaper from before the timer started leaves it running")
+  func backdatedLeavesTimer() throws {
+    let (store, _) = try make()
+    try store.startNursing(side: .left, at: t(8), endSleep: false)
+    try store.logDiaper(kind: .wet, stoolColor: nil, consistency: nil, size: nil, rash: false, at: t(7), note: "")
+    #expect(try store.snapshot(now: t(8, 5)).activeNursing != nil)
+  }
+
+  @Test("Starting a sleep ends nursing")
+  func sleepEndsNursing() throws {
+    let (store, _) = try make()
+    try store.startNursing(side: .right, at: t(8), endSleep: false)
+    try store.startSleep(location: nil, at: t(8, 20))
+    let snapshot = try store.snapshot(now: t(8, 21))
+    #expect(snapshot.activeNursing == nil)
+    #expect(snapshot.activeSleep != nil)
+  }
+
+  @Test("Stale sweep closes old timers and leaves fresh ones")
+  func staleSweep() throws {
+    let (store, _) = try make()
+    try store.startNursing(side: .left, at: t(8), endSleep: false)
+    #expect(try store.closeStaleTimers(at: t(8, 20)).isEmpty)
+    #expect(try store.closeStaleTimers(at: t(9)).count == 1)
+    #expect(try nursingEnd(store).end == t(8, 30))
+    try store.startPump(at: t(10))
+    try store.startSleep(location: nil, at: t(10, 5))
+    let closed = try store.closeStaleTimers(at: t(12))
+    #expect(closed.count == 1)  // pump (45 min) closes; sleep (2 h) is normal
+    #expect(try store.snapshot(now: t(12)).activeSleep != nil)
+  }
+}
