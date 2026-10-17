@@ -15,7 +15,7 @@ public enum InsightSeverity: Int, Hashable, Sendable, Comparable {
 }
 
 public enum InsightTopic: String, Hashable, Sendable {
-  case feeding, nursing, sleep, diapers, pumping, data
+  case feeding, nursing, sleep, diapers, pumping, growth, data
 }
 
 /// One finding, phrased in fixed wording from numbers computed in code. Never a diagnosis.

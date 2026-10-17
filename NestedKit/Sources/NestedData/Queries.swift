@@ -228,10 +228,15 @@ public struct TrendsRequest: FetchKeyRequest {
     public var baby: Baby?
     public var history: History
     public var notes: [BabyNote]
-    public init(baby: Baby? = nil, history: History = History(), notes: [BabyNote] = []) {
+    /// Every weigh-in, oldest first.
+    public var weights: [Weighing]
+    public init(
+      baby: Baby? = nil, history: History = History(), notes: [BabyNote] = [], weights: [Weighing] = []
+    ) {
       self.baby = baby
       self.history = history
       self.notes = notes
+      self.weights = weights
     }
   }
 
@@ -244,9 +249,17 @@ public struct TrendsRequest: FetchKeyRequest {
       byAdding: .day, value: -(days + 14), to: Calendar.current.startOfDay(for: Date())) ?? .distantPast
     let notes = try BabyNote.where { $0.babyID.eq(baby.id) && $0.occurredAt.gte(since) }
       .order { $0.occurredAt.desc() }.fetchAll(db)
+    let weights = try Weighing.where { $0.babyID.eq(baby.id) }.order { $0.measuredAt.asc() }.fetchAll(db)
+    // Reach back to just before the first weigh-in (up to six months) so what was logged between
+    // weigh-ins can be compared with the gain.
+    var historySince = since
+    if let first = weights.first?.measuredAt {
+      let floor = Calendar.current.date(byAdding: .day, value: -180, to: Date()) ?? .distantPast
+      historySince = min(since, max(floor, first.addingTimeInterval(-86_400)))
+    }
     return Value(
-      baby: baby, history: try EntryQueries.history(db, babyID: baby.id, since: since, now: Date()),
-      notes: notes)
+      baby: baby, history: try EntryQueries.history(db, babyID: baby.id, since: historySince, now: Date()),
+      notes: notes, weights: weights)
   }
 }
 

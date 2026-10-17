@@ -39,7 +39,7 @@ extension InsightTopic {
     case .sleep: .sleep
     case .diapers: .diaper
     case .pumping: .pump
-    case .data: nil
+    case .data, .growth: nil
     }
   }
 }

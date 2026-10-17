@@ -111,6 +111,14 @@ public protocol EventStore: Sendable {
 
   // Medications
   /// A blank medicine for this baby, not yet saved.
+  // Weight
+  @discardableResult
+  func logWeight(grams: Double, at date: Date, note: String) throws -> Weighing
+  func saveWeight(_ weighing: Weighing) throws
+  func deleteWeight(id: UUID) throws
+  func restoreWeight(_ weighing: Weighing) throws
+  func weighings() throws -> [Weighing]
+
   func draftMedication() throws -> Medication
   func medications() throws -> [Medication]
   func saveMedication(_ medication: Medication) throws
@@ -659,6 +667,39 @@ public struct LiveEventStore: EventStore {
   }
 
   // MARK: Medications
+
+  public func logWeight(grams: Double, at date: Date, note: String) throws -> Weighing {
+    let stamp = now()
+    return try database.write { db in
+      let baby = try requireBaby(db)
+      let weighing = Weighing(
+        id: UUID(), babyID: baby.id, measuredAt: date, grams: grams, note: note, loggedBy: owner(),
+        createdAt: stamp, editedAt: stamp)
+      try Weighing.insert { weighing }.execute(db)
+      return weighing
+    }
+  }
+
+  public func saveWeight(_ weighing: Weighing) throws {
+    var updated = weighing
+    updated.editedAt = now()
+    try database.write { db in try Weighing.upsert { updated }.execute(db) }
+  }
+
+  public func deleteWeight(id: UUID) throws {
+    try database.write { db in try Weighing.find(id).delete().execute(db) }
+  }
+
+  public func restoreWeight(_ weighing: Weighing) throws {
+    try database.write { db in try Weighing.upsert { weighing }.execute(db) }
+  }
+
+  public func weighings() throws -> [Weighing] {
+    try database.read { db in
+      guard let baby = try Self.currentBaby(db) else { return [] }
+      return try Weighing.where { $0.babyID.eq(baby.id) }.order { $0.measuredAt.asc() }.fetchAll(db)
+    }
+  }
 
   public func draftMedication() throws -> Medication {
     let stamp = now()

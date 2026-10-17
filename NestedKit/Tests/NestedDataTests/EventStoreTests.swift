@@ -639,3 +639,47 @@ struct ForgottenTimerTests {
     #expect(try store.snapshot(now: t(12)).activeSleep != nil)
   }
 }
+
+@Suite("Weight", .serialized)
+struct WeightStoreTests {
+  @Test("Weigh-ins are saved oldest first, edited, deleted and restored")
+  func crud() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: t(day: 1, 8), feedingMode: .mixed, unit: .oz)
+    let second = try store.logWeight(grams: 3500, at: t(day: 12, 9), note: "")
+    let first = try store.logWeight(grams: 3300, at: t(day: 5, 9), note: "home scale")
+    #expect(try store.weighings().map(\.grams) == [3300, 3500])
+    #expect(first.loggedBy == "Bennett")
+    var edited = second
+    edited.grams = 3550
+    try store.saveWeight(edited)
+    #expect(try store.weighings().last?.grams == 3550)
+    try store.deleteWeight(id: first.id)
+    #expect(try store.weighings().count == 1)
+    try store.restoreWeight(first)
+    #expect(try store.weighings().count == 2)
+  }
+
+  @Test("Trends reads every weigh-in and reaches back to the first one")
+  func trendsRequest() throws {
+    let clock = TestClock(Date())
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: Date().addingTimeInterval(-60 * 86_400), feedingMode: .mixed, unit: .ml)
+    try store.logWeight(grams: 4000, at: Date().addingTimeInterval(-55 * 86_400), note: "")
+    try store.logWeight(grams: 5200, at: Date().addingTimeInterval(-2 * 86_400), note: "")
+    let value = try store.database.read { db in try TrendsRequest(days: 7).fetch(db) }
+    #expect(value.weights.map(\.grams) == [4000, 5200])
+  }
+
+  @Test("Deleting all data removes weigh-ins too")
+  func cascade() throws {
+    let clock = TestClock(t(10))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: nil, feedingMode: .mixed, unit: .ml)
+    try store.logWeight(grams: 3300, at: t(9), note: "")
+    try store.deleteAllData()
+    let count = try store.database.read { db in try Weighing.fetchCount(db) }
+    #expect(count == 0)
+  }
+}

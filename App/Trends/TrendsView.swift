@@ -3,6 +3,18 @@ import NestedData
 import SQLiteData
 import SwiftUI
 
+enum WeightSheetRoute: Identifiable {
+  case add
+  case edit(Weighing)
+
+  var id: String {
+    switch self {
+    case .add: "add"
+    case .edit(let weighing): weighing.id.uuidString
+    }
+  }
+}
+
 struct TrendsView: View {
   @State private var range: StatsRange = .week
   @Fetch(TrendsRequest(days: 30), animation: Motion.standard) private var data = TrendsRequest.Value()
@@ -11,6 +23,8 @@ struct TrendsView: View {
   @State private var selectedInsight: Insight?
   @State private var asking = false
   @State private var snoozed = InsightSnooze.snoozed()
+  @State private var weightSheet: WeightSheetRoute?
+  @Environment(AppModel.self) private var model
   /// Bumped every minute and when the app returns to the foreground, so anything computed
   /// from the current time (today's partial day, running timers, midnight) stays fresh.
   @State private var tick = Date()
@@ -37,8 +51,13 @@ struct TrendsView: View {
 
   private var night: DayWindow { data.baby?.nightWindow ?? .defaultNight }
 
+  private var weightRecords: [WeightRecord] { data.weights.map(\.record) }
+
   private var allInsights: [Insight] {
     InsightEngine.generate(history: data.history, birth: birth, now: Date(), night: night)
+      + GrowthEngine.insights(
+        weights: weightRecords, history: data.history, birth: birth, due: DevicePrefs.dueDate, now: Date(),
+        unit: unit)
   }
 
   private var insights: [Insight] { allInsights.filter { !snoozed.contains($0.id) } }
@@ -84,6 +103,7 @@ struct TrendsView: View {
     let whole = DailyStatsBuilder.wholeDays(recent, birth: birth)
     let digest = WeeklyDigest.compute(days: whole.isEmpty ? recent : whole, stretch: nightStretch)
     return InsightBrief.facts(digest: digest, insights: allInsights, babyName: babyName, unit: unit)
+      + GrowthEngine.facts(weights: weightRecords, history: data.history, unit: unit)
   }
 
   var body: some View {
@@ -104,6 +124,10 @@ struct TrendsView: View {
               ForEach(Array(tileList.enumerated()), id: \.offset) { item in item.element }
             }
           }
+
+          WeightCard(
+            weights: data.weights, baby: data.baby, history: data.history,
+            add: { weightSheet = .add }, edit: { weightSheet = .edit($0) })
 
           InsightGroups(insights: insights) { selectedInsight = $0 }
 
@@ -150,7 +174,7 @@ struct TrendsView: View {
       .nestedBackground()
       .actionBarInset(tab: .trends)
       .navigationTitle("Trends")
-      .task(id: data.history) { await refreshBriefing() }
+      .task(id: [data.history.hashValue, data.weights.hashValue]) { await refreshBriefing() }
       .onReceive(Timer.publish(every: 60, on: .main, in: .common).autoconnect()) { tick = $0 }
       .onChange(of: scenePhase) { _, phase in
         if phase == .active {
@@ -165,6 +189,25 @@ struct TrendsView: View {
           snoozed = InsightSnooze.snoozed()
         }
       }
+      .sheet(item: $weightSheet) { route in
+        switch route {
+        case .add:
+          WeightSheet(unit: unit, previous: data.weights.last, existing: nil) { grams, date, note in
+            model.logWeight(grams: grams, at: date, note: note)
+          }
+        case .edit(let weighing):
+          WeightSheet(
+            unit: unit, previous: data.weights.last { $0.measuredAt < weighing.measuredAt }, existing: weighing,
+            save: { grams, date, note in
+              var edited = weighing
+              edited.grams = grams
+              edited.measuredAt = date
+              edited.note = note
+              model.saveWeight(edited, original: weighing)
+            },
+            delete: { model.deleteWeight(weighing) })
+        }
+      }
       .sheet(isPresented: $asking) {
         AskTrendsSheet(
           facts: briefFacts,
@@ -177,7 +220,8 @@ struct TrendsView: View {
                 DailyStatsBuilder.build(history: data.history, days: 14, now: Date()), birth: birth
               ).map(\.day),
               now: Date(), night: night),
-            unit: unit),
+            unit: unit)
+            + GrowthEngine.facts(weights: weightRecords, history: data.history, unit: unit),
           babyName: babyName)
       }
     }

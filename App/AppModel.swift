@@ -173,6 +173,41 @@ final class AppModel {
   }
 
   /// Starting a feed while she's asleep offers "End sleep and start feed?" as one tap.
+  // MARK: Weight
+
+  func logWeight(grams: Double, at date: Date, note: String) {
+    let store = store
+    do {
+      let weighing = try store.logWeight(grams: grams, at: date, note: note)
+      successTick += 1
+      showToast("Saved weigh-in", undo: { try? store.deleteWeight(id: weighing.id) })
+    } catch {
+      errorMessage = String(describing: error)
+    }
+  }
+
+  func saveWeight(_ edited: Weighing, original: Weighing) {
+    let store = store
+    do {
+      try store.saveWeight(edited)
+      successTick += 1
+      showToast("Updated weigh-in", undo: { try? store.restoreWeight(original) })
+    } catch {
+      errorMessage = String(describing: error)
+    }
+  }
+
+  func deleteWeight(_ weighing: Weighing) {
+    let store = store
+    do {
+      try store.deleteWeight(id: weighing.id)
+      impactTick += 1
+      showToast("Deleted weigh-in", undo: { try? store.restoreWeight(weighing) })
+    } catch {
+      errorMessage = String(describing: error)
+    }
+  }
+
   /// Logs a suggested entry from the "Missing anything?" card.
   func add(_ suggestion: MissingSuggestion) {
     let store = store

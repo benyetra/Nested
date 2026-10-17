@@ -9,7 +9,7 @@ enum ReportRenderer {
   static let pageSize = CGSize(width: 612, height: 792)
 
   static func render(
-    baby: Baby, history: History, notes: [BabyNote], questions: [Question] = [], medications: [Medication] = [],
+    baby: Baby, history: History, notes: [BabyNote], questions: [Question] = [], medications: [Medication] = [], weights: [Weighing] = [],
     days: Int, now: Date = Date()
   ) throws -> URL {
     // Start at the birth, not at the range: no rows of zeros for days before she was born.
@@ -26,6 +26,9 @@ enum ReportRenderer {
     ]
     if !questions.isEmpty {
       pages.append(AnyView(QuestionsPage(baby: baby, questions: questions)))
+    }
+    if !weights.isEmpty {
+      pages.append(AnyView(WeightPage(baby: baby, weights: weights)))
     }
     pages.append(AnyView(DayClockPage(baby: baby, history: history, days: stats.count, now: now)))
     pages.append(AnyView(LogPage(baby: baby, stools: stools, notes: reportNotes, medications: medications.filter(\.isActive))))
@@ -168,6 +171,53 @@ private struct DayClockPage: View {
 }
 
 /// What to ask, with room to write the answer by hand, and what was answered before.
+private struct WeightPage: View {
+  let baby: Baby
+  let weights: [Weighing]
+
+  private var unit: VolumeUnit { baby.unit }
+
+  var body: some View {
+    PageFrame(baby: baby, title: "Weight") {
+      Text("Weigh-ins").font(.headline)
+      Grid(alignment: .leading, horizontalSpacing: 16, verticalSpacing: 6) {
+        GridRow {
+          Text("Date").font(.caption.weight(.semibold))
+          Text("Weight").font(.caption.weight(.semibold))
+          Text("Change").font(.caption.weight(.semibold))
+          Text("Per day").font(.caption.weight(.semibold))
+          Text("Percentile").font(.caption.weight(.semibold))
+        }
+        Divider()
+        ForEach(Array(weights.suffix(14).enumerated()), id: \.element.id) { index, weight in
+          let earlier = index > 0 ? weights.suffix(14)[weights.suffix(14).startIndex + index - 1] : nil
+          GridRow {
+            Text(weight.measuredAt.formatted(date: .abbreviated, time: .omitted))
+            Text(WeightFormat.format(grams: weight.grams, unit: unit))
+            if let earlier {
+              let days = max(1, weight.measuredAt.timeIntervalSince(earlier.measuredAt) / 86_400)
+              Text(WeightFormat.change(grams: weight.grams - earlier.grams, unit: unit))
+              Text(WeightFormat.change(grams: (weight.grams - earlier.grams) / days, unit: unit))
+            } else {
+              Text("")
+              Text("")
+            }
+            if let birth = baby.birthDate {
+              let age = Double(DevelopmentGuide.ageDays(birth: birth, due: DevicePrefs.dueDate, now: weight.measuredAt))
+              Text(GrowthEngine.ordinal(WeightReference.percentile(grams: weight.grams, ageDays: age)))
+            } else {
+              Text("")
+            }
+          }
+          .font(.callout)
+        }
+      }
+      Text("Percentiles are approximate, from the WHO weight-for-age reference for girls.")
+        .font(.caption).foregroundStyle(.secondary)
+    }
+  }
+}
+
 private struct QuestionsPage: View {
   let baby: Baby
   let questions: [Question]

@@ -269,6 +269,21 @@ public struct Avatar: Identifiable, Hashable, Sendable, Codable {
   public static func parentSubject(_ name: String) -> String { "parent:\(name)" }
 }
 
+/// One weigh-in. Weight is kept in grams and shown in the baby's unit.
+@Table("weighings")
+public struct Weighing: Identifiable, Hashable, Sendable, Codable {
+  public let id: UUID
+  public var babyID: Baby.ID
+  public var measuredAt: Date
+  public var grams: Double
+  public var note = ""
+  public var loggedBy = ""
+  public var createdAt: Date
+  public var editedAt: Date
+
+  public var record: WeightRecord { WeightRecord(at: measuredAt, grams: grams) }
+}
+
 /// A medicine on a schedule, for the baby or a parent. Both phones schedule the same reminders
 /// from these rows, so they go off at the same moment.
 @Table("medications")
@@ -696,6 +711,30 @@ public enum NestedSchema {
         ("medications", "babyID"), ("medicationDoses", "babyID"),
         ("medicationDoses", "medicationID"), ("medicationDoses", "takenAt"),
       ] {
+        try db.execute(
+          sql: """
+            CREATE INDEX IF NOT EXISTS "idx_\(table)_\(column)" ON "\(table)"("\(column)")
+            """)
+      }
+    }
+
+    migrator.registerMigration("v5: weighings") { db in
+      try #sql(
+        """
+        CREATE TABLE "weighings" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "babyID" TEXT NOT NULL REFERENCES "babies"("id") ON DELETE CASCADE,
+          "measuredAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now')),
+          "grams" REAL NOT NULL ON CONFLICT REPLACE DEFAULT 0,
+          "note" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "loggedBy" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "createdAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now')),
+          "editedAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now'))
+        ) STRICT
+        """
+      )
+      .execute(db)
+      for (table, column) in [("weighings", "babyID"), ("weighings", "measuredAt")] {
         try db.execute(
           sql: """
             CREATE INDEX IF NOT EXISTS "idx_\(table)_\(column)" ON "\(table)"("\(column)")
