@@ -119,6 +119,10 @@ public protocol EventStore: Sendable {
   func restoreWeight(_ weighing: Weighing) throws
   func weighings() throws -> [Weighing]
 
+  // Sleep plan
+  func sleepPlan() throws -> SleepPlan?
+  func saveSleepPlan(_ plan: SleepPlan) throws
+
   func draftMedication() throws -> Medication
   func medications() throws -> [Medication]
   func saveMedication(_ medication: Medication) throws
@@ -698,6 +702,25 @@ public struct LiveEventStore: EventStore {
     try database.read { db in
       guard let baby = try Self.currentBaby(db) else { return [] }
       return try Weighing.where { $0.babyID.eq(baby.id) }.order { $0.measuredAt.asc() }.fetchAll(db)
+    }
+  }
+
+  public func sleepPlan() throws -> SleepPlan? {
+    try database.read { db in
+      guard let baby = try Self.currentBaby(db) else { return nil }
+      return try SleepPlanRow.where { $0.babyID.eq(baby.id) }.fetchOne(db)?.decoded
+    }
+  }
+
+  public func saveSleepPlan(_ plan: SleepPlan) throws {
+    let stamp = now()
+    let encoded = SleepPlanRow.encode(plan)
+    try database.write { db in
+      let baby = try requireBaby(db)
+      let row = SleepPlanRow(
+        id: try SleepPlanRow.where { $0.babyID.eq(baby.id) }.fetchOne(db)?.id ?? UUID(), babyID: baby.id,
+        plan: encoded, updatedBy: owner(), editedAt: stamp)
+      try SleepPlanRow.upsert { row }.execute(db)
     }
   }
 

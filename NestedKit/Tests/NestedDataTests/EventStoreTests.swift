@@ -683,3 +683,27 @@ struct WeightStoreTests {
     #expect(count == 0)
   }
 }
+
+@Suite("Sleep plan store", .serialized)
+struct SleepPlanStoreTests {
+  @Test("A saved plan comes back in the snapshot, and its wake window drives the nap prediction")
+  func roundTrip() throws {
+    let clock = TestClock(t(12))
+    let store = try makeStore(clock: clock)
+    try store.createBaby(name: "Maddie", birthDate: t(day: 1, 8), feedingMode: .mixed, unit: .ml)
+    #expect(try store.sleepPlan() == nil)
+    var plan = SleepPlan.starter
+    plan.enabled = true
+    plan.stages = [SleepPlan.Stage(fromWeek: 0, wakeMinute: 420, napMinutes: [540], napLength: 90, wakeWindow: 100)]
+    try store.saveSleepPlan(plan)
+    try store.saveSleepPlan(plan)  // saving again replaces, never duplicates
+    #expect(try store.sleepPlan() == plan)
+    let count = try store.database.read { db in try SleepPlanRow.fetchCount(db) }
+    #expect(count == 1)
+    try store.startSleep(location: nil, at: t(9))
+    try store.stopSleep(at: t(10))
+    let snapshot = try store.snapshot(now: t(10, 5))
+    #expect(snapshot.sleepPlan == plan)
+    #expect(snapshot.napPrediction?.wakeWindow == TimeInterval(100 * 60))
+  }
+}

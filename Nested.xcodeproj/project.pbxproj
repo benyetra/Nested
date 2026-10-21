@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		F2C4D6E8A0B2C4D6E8F0A2B4 /* SleepPlanViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1B3C5D7F9A1B3C5D7E9F1A3 /* SleepPlanViews.swift */; };
 		C9F1A3B5D7E9F1A3B5C7D9E1 /* GrowthViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8E0F2A4C6D8E0F2A4B6C8D0 /* GrowthViews.swift */; };
 		A7D9E1F3B5C7D9E1F3A5B7C9 /* DurationEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6C8D0E2A4B6C8D0E2F4A6B8 /* DurationEditor.swift */; };
 		E5B7C9D1F3A5B7C9D1E3F5A7 /* MissingDataCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = D4A6B8C0E2F4A6B8C0D2E4F6 /* MissingDataCard.swift */; };
@@ -157,6 +158,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		E1B3C5D7F9A1B3C5D7E9F1A3 /* SleepPlanViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SleepPlanViews.swift; sourceTree = "<group>"; };
 		B8E0F2A4C6D8E0F2A4B6C8D0 /* GrowthViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GrowthViews.swift; sourceTree = "<group>"; };
 		F6C8D0E2A4B6C8D0E2F4A6B8 /* DurationEditor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DurationEditor.swift; sourceTree = "<group>"; };
 		D4A6B8C0E2F4A6B8C0D2E4F6 /* MissingDataCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissingDataCard.swift; sourceTree = "<group>"; };
@@ -269,6 +271,14 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		A3D5E7F9B1C3D5E7F9A1B3C5 /* SleepPlan */ = {
+			isa = PBXGroup;
+			children = (
+				E1B3C5D7F9A1B3C5D7E9F1A3 /* SleepPlanViews.swift */,
+			);
+			path = SleepPlan;
+			sourceTree = "<group>";
+		};
 		D0A2B4C6E8F0A2B4C6D8E0F2 /* Growth */ = {
 			isa = PBXGroup;
 			children = (
@@ -362,6 +372,7 @@
 				CC164C265E169839052DDF7B /* Design */,
 				C3F507192B3D4E6F81A02C34 /* Development */,
 				D0A2B4C6E8F0A2B4C6D8E0F2 /* Growth */,
+				A3D5E7F9B1C3D5E7F9A1B3C5 /* SleepPlan */,
 				E895F6D43B180FE80793ED9F /* Intents */,
 				E0F127FBAD6ACF68BAAEBAEB /* Log */,
 				EC3F86FFFBFD94E7E5C15F72 /* Medications */,
@@ -821,6 +832,7 @@
 				CEFE9EE769FC9C22F34004B7 /* NowView.swift in Sources */,
 				E5B7C9D1F3A5B7C9D1E3F5A7 /* MissingDataCard.swift in Sources */,
 				C9F1A3B5D7E9F1A3B5C7D9E1 /* GrowthViews.swift in Sources */,
+				F2C4D6E8A0B2C4D6E8F0A2B4 /* SleepPlanViews.swift in Sources */,
 				AA5C1BD0E8575FB821DF2141 /* OnboardingView.swift in Sources */,
 				4C64C726FF198DDF9C30EE4D /* PartnerPushService.swift in Sources */,
 				ED95CC17300B1FD98E938771 /* QuestionEditor.swift in Sources */,

@@ -58,6 +58,12 @@ struct TrendsView: View {
       + GrowthEngine.insights(
         weights: weightRecords, history: data.history, birth: birth, due: DevicePrefs.dueDate, now: Date(),
         unit: unit)
+      + planInsights
+  }
+
+  private var planInsights: [Insight] {
+    guard let plan = SideEffects.shared.snapshot.sleepPlan else { return [] }
+    return SleepPlanner.insights(plan: plan, birth: birth, due: DevicePrefs.dueDate, history: data.history, now: Date())
   }
 
   private var insights: [Insight] { allInsights.filter { !snoozed.contains($0.id) } }

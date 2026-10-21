@@ -60,6 +60,8 @@ public struct NestedSnapshot: Hashable, Sendable {
   public var devices: [DeviceToken]
 
   public var medications: [Medication] = []
+  /// The parents' sleep plan, when they have set one up.
+  public var sleepPlan: SleepPlan?
   /// The last two weeks of doses, newest first.
   public var medicationDoses: [MedicationDose] = []
 
@@ -173,11 +175,18 @@ public enum SnapshotBuilder {
 
     let feedPrediction = FeedPredictor.predict(
       feedStarts: history.feeds.map(\.startedAt), now: now, calendar: calendar)
+    let sleepPlan = try SleepPlanRow.where { $0.babyID.eq(baby.id) }.fetchOne(db)?.decoded
+    let ageDaysNow = baby.birthDate.map { AgeMath.days(from: $0, to: now, calendar: calendar) } ?? 14
+    // A wake window set by hand wins, then the plan's for her age.
+    let planWindow = sleepPlan.flatMap { plan -> Int? in
+      guard plan.enabled, let stage = plan.stage(ageWeeks: ageDaysNow / 7), stage.wakeWindow > 0 else { return nil }
+      return stage.wakeWindow
+    }
     let napPrediction = NapPredictor.predict(
       sleeps: history.sleeps,
       ageInDays: baby.birthDate.map { AgeMath.days(from: $0, to: now, calendar: calendar) } ?? 14,
       now: now,
-      defaultOverride: baby.wakeWindowOverrideMinutes.map { TimeInterval($0 * 60) },
+      defaultOverride: (baby.wakeWindowOverrideMinutes ?? planWindow).map { TimeInterval($0 * 60) },
       calendar: calendar)
 
     let startOfToday = calendar.startOfDay(for: now)
@@ -217,6 +226,7 @@ public enum SnapshotBuilder {
       medicationDoses: medicationDoses
     )
     snapshot.myDeviceID = deviceID
+    snapshot.sleepPlan = sleepPlan
     return snapshot
   }
 }

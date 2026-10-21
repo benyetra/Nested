@@ -269,6 +269,23 @@ public struct Avatar: Identifiable, Hashable, Sendable, Codable {
   public static func parentSubject(_ name: String) -> String { "parent:\(name)" }
 }
 
+/// The parents' sleep and feeding plan: one row per baby, the plan itself as JSON so stages can
+/// change without a new migration.
+@Table("sleepPlans")
+public struct SleepPlanRow: Identifiable, Hashable, Sendable, Codable {
+  public let id: UUID
+  public var babyID: Baby.ID
+  public var plan = ""
+  public var updatedBy = ""
+  public var editedAt: Date
+
+  public var decoded: SleepPlan? { try? JSONDecoder().decode(SleepPlan.self, from: Data(plan.utf8)) }
+
+  public static func encode(_ plan: SleepPlan) -> String {
+    (try? JSONEncoder().encode(plan)).flatMap { String(data: $0, encoding: .utf8) } ?? ""
+  }
+}
+
 /// One weigh-in. Weight is kept in grams and shown in the baby's unit.
 @Table("weighings")
 public struct Weighing: Identifiable, Hashable, Sendable, Codable {
@@ -740,6 +757,25 @@ public enum NestedSchema {
             CREATE INDEX IF NOT EXISTS "idx_\(table)_\(column)" ON "\(table)"("\(column)")
             """)
       }
+    }
+
+    migrator.registerMigration("v6: sleep plans") { db in
+      try #sql(
+        """
+        CREATE TABLE "sleepPlans" (
+          "id" TEXT PRIMARY KEY NOT NULL ON CONFLICT REPLACE DEFAULT (uuid()),
+          "babyID" TEXT NOT NULL REFERENCES "babies"("id") ON DELETE CASCADE,
+          "plan" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "updatedBy" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT '',
+          "editedAt" TEXT NOT NULL ON CONFLICT REPLACE DEFAULT (datetime('now'))
+        ) STRICT
+        """
+      )
+      .execute(db)
+      try db.execute(
+        sql: """
+          CREATE INDEX IF NOT EXISTS "idx_sleepPlans_babyID" ON "sleepPlans"("babyID")
+          """)
     }
 
     return migrator

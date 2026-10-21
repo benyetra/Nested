@@ -125,6 +125,11 @@ struct SettingsView: View {
             if on { Task { await NotificationService.shared.requestAuthorization() } }
             SideEffects.shared.refresh()
           }
+        NavigationLink {
+          SleepPlanEditor()
+        } label: {
+          Label("Sleep plan", systemImage: "calendar.badge.clock")
+        }
       } header: {
         Text("Predictions")
       } footer: {

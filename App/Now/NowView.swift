@@ -9,6 +9,7 @@ struct NowView: View {
   @Environment(AppModel.self) private var model
   private var snapshot: NestedSnapshot { SideEffects.shared.snapshot }
   @State private var showingDevelopment = false
+  @State private var showingPlan = false
   @State private var dismissedMissing = MissingDismissals.load()
 
   var body: some View {
@@ -18,6 +19,7 @@ struct NowView: View {
           VStack(spacing: 14) {
             flagsCard(now: context.date)
             timersSection(now: context.date)
+            planCard(now: context.date)
             missingCard(now: context.date)
             statusTiles(now: context.date)
             predictions(now: context.date)
@@ -34,6 +36,11 @@ struct NowView: View {
       .actionBarInset(tab: .now)
       // A real navigation bar, so content scrolls under a proper edge effect instead of
       // colliding with the status bar.
+      .sheet(isPresented: $showingPlan) {
+        if let plan = snapshot.sleepPlan, let age = DevelopmentAge(birth: snapshot.baby?.birthDate) {
+          PlanDaySheet(name: snapshot.babyName, plan: plan, age: age, history: snapshot.history)
+        }
+      }
       .sheet(isPresented: $showingDevelopment) {
         if let age = DevelopmentAge(birth: snapshot.baby?.birthDate) {
           DevelopmentSheet(name: snapshot.babyName, age: age)
@@ -54,6 +61,16 @@ struct NowView: View {
 
   private var ageText: String {
     snapshot.baby?.birthDate.map { AgeMath.label(birth: $0, now: Date()) } ?? ""
+  }
+
+  @ViewBuilder
+  private func planCard(now: Date) -> some View {
+    if let plan = snapshot.sleepPlan, plan.enabled, let age = DevelopmentAge(birth: snapshot.baby?.birthDate, now: now) {
+      PlanCard(
+        name: snapshot.babyName, plan: plan, age: age, history: snapshot.history,
+        activeSleepStart: snapshot.activeSleep?.startedAt, now: now
+      ) { showingPlan = true }
+    }
   }
 
   @ViewBuilder
