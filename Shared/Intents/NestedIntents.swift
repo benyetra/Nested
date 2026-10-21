@@ -430,6 +430,15 @@ struct SnoozeFeedAlarmIntent: NestedWriteIntent {
 
 // MARK: - Control toggles
 
+/// Records what is running right after a toggle, so the control shows the new state the moment
+/// the system asks, before any other process's read of the database could have seen it.
+private func rememberTimers(_ store: any EventStore) {
+  guard let snapshot = try? store.snapshot(now: Date()) else { return }
+  TimerStateCache.write(
+    nursingStart: snapshot.activeNursing?.session.startedAt, sleepStart: snapshot.activeSleep?.startedAt)
+  SharedStore.reloadSurfaces()
+}
+
 struct ToggleSleepIntent: SetValueIntent, NestedWriteIntent {
   static let title: LocalizedStringResource = "Nap"
   static let openAppWhenRun = false
@@ -448,6 +457,7 @@ struct ToggleSleepIntent: SetValueIntent, NestedWriteIntent {
     } else if try store.snapshot(now: Date()).activeSleep != nil {
       try store.stopSleep(at: Date())
     }
+    rememberTimers(store)
     return .result()
   }
 }
@@ -470,6 +480,7 @@ struct ToggleNursingIntent: SetValueIntent, NestedWriteIntent {
     } else if try store.snapshot(now: Date()).activeNursing != nil {
       try store.stopNursing(at: Date(), latchNote: nil)
     }
+    rememberTimers(store)
     return .result()
   }
 }

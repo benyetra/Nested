@@ -707,3 +707,37 @@ struct SleepPlanStoreTests {
     #expect(snapshot.napPrediction?.wakeWindow == TimeInterval(100 * 60))
   }
 }
+
+@Suite("Timer state for controls")
+struct TimerStateCacheTests {
+  let now = t(10)
+  let started = t(9, 58)
+
+  @Test("A write from the last few seconds beats a database read that may not have caught up")
+  func freshCacheWins() {
+    let cached = TimerStateCache.State(nursingStart: started, sleepStart: nil, updatedAt: now.addingTimeInterval(-2))
+    let state = TimerStateCache.resolve(cached: cached, database: (nil, nil), now: now)
+    #expect(state.nursingStart == started)
+  }
+
+  @Test("An older cache gives way to the database")
+  func databaseWins() {
+    let cached = TimerStateCache.State(nursingStart: started, sleepStart: nil, updatedAt: now.addingTimeInterval(-60))
+    let state = TimerStateCache.resolve(cached: cached, database: (nil, nil), now: now)
+    #expect(state.nursingStart == nil)
+  }
+
+  @Test("If the database can't be read, the last known state stands")
+  func fallsBackToCache() {
+    let cached = TimerStateCache.State(nursingStart: started, sleepStart: nil, updatedAt: now.addingTimeInterval(-600))
+    #expect(TimerStateCache.resolve(cached: cached, database: nil, now: now).nursingStart == started)
+    #expect(TimerStateCache.resolve(cached: nil, database: nil, now: now).nursingStart == nil)
+  }
+
+  @Test("State round-trips through the shared defaults")
+  func roundTrip() {
+    DevicePrefs.defaults = UserDefaults(suiteName: "nested-tests-\(UUID().uuidString)")!
+    TimerStateCache.write(nursingStart: started, sleepStart: nil, now: now)
+    #expect(TimerStateCache.read() == TimerStateCache.State(nursingStart: started, sleepStart: nil, updatedAt: now))
+  }
+}

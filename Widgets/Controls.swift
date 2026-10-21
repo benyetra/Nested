@@ -70,12 +70,22 @@ struct TimerValue: Sendable {
   var startedAt: Date?
 }
 
+/// The running timers for a control: the database, unless a write in the last few seconds is
+/// newer than a read from this process can be trusted to see. Never throws; a control that can't
+/// read shows the last known state instead of snapping back to "off".
+private func currentTimers() -> (nursingStart: Date?, sleepStart: Date?) {
+  let database = (try? SharedStore.store.snapshot(now: Date())).map {
+    (nursingStart: $0.activeNursing?.session.startedAt, sleepStart: $0.activeSleep?.startedAt)
+  }
+  return TimerStateCache.resolve(cached: TimerStateCache.read(), database: database)
+}
+
 struct SleepValueProvider: ControlValueProvider {
   var previewValue: TimerValue { TimerValue(isRunning: false, startedAt: nil) }
 
   func currentValue() async throws -> TimerValue {
-    let sleep = try SharedStore.store.snapshot(now: Date()).activeSleep
-    return TimerValue(isRunning: sleep != nil, startedAt: sleep?.startedAt)
+    let start = currentTimers().sleepStart
+    return TimerValue(isRunning: start != nil, startedAt: start)
   }
 }
 
@@ -83,8 +93,8 @@ struct NursingValueProvider: ControlValueProvider {
   var previewValue: TimerValue { TimerValue(isRunning: false, startedAt: nil) }
 
   func currentValue() async throws -> TimerValue {
-    let nursing = try SharedStore.store.snapshot(now: Date()).activeNursing
-    return TimerValue(isRunning: nursing != nil, startedAt: nursing?.session.startedAt)
+    let start = currentTimers().nursingStart
+    return TimerValue(isRunning: start != nil, startedAt: start)
   }
 }
 

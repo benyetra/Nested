@@ -61,6 +61,8 @@ final class SideEffects {
 
   private func apply(_ snapshot: NestedSnapshot) {
     latest = snapshot
+    TimerStateCache.write(
+      nursingStart: snapshot.activeNursing?.session.startedAt, sleepStart: snapshot.activeSleep?.startedAt)
     SharedStore.reloadSurfaces()
     guard let store, snapshot.baby != nil else { return }
     LiveActivityService.shared.reconcile(snapshot)
