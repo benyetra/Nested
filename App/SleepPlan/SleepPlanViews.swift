@@ -140,13 +140,29 @@ struct PlanDaySheet: View {
         ScrollView {
           VStack(alignment: .leading, spacing: 8) {
             if let stage = plan.stage(ageWeeks: age.days / 7) {
-              Text("\(stage.title) · longest awake \(stage.wakeWindow > 0 ? Durations.format(Double(stage.wakeWindow) * 60) : "not set")")
-                .font(.footnote).foregroundStyle(.secondary)
+              VStack(alignment: .leading, spacing: 4) {
+                Text(stage.title).font(.headline)
+                Text("Longest awake: \(stage.wakeWindow > 0 ? Durations.format(Double(stage.wakeWindow) * 60) : "not set")")
+                  .font(.footnote).foregroundStyle(.secondary)
+                if !stage.note.isEmpty {
+                  Text(stage.note).font(.footnote).foregroundStyle(.secondary)
+                }
+              }
+              .padding(.bottom, 4)
             }
             ForEach(slots) { slot in
               SlotRow(slot: slot)
                 .padding(12)
                 .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Palette.card))
+            }
+            if let current = plan.stage(ageWeeks: age.days / 7),
+              let next = plan.stages.first(where: { $0.fromWeek > current.fromWeek })
+            {
+              VStack(alignment: .leading, spacing: 4) {
+                Text("Next: \(next.title)").font(.subheadline.weight(.semibold))
+                Text("From week \(next.fromWeek). \(next.note)").font(.footnote).foregroundStyle(.secondary)
+              }
+              .padding(.top, 10)
             }
             Text("Times are the plan's. Anything logged within about 45 minutes counts as on time.")
               .font(.footnote).foregroundStyle(.secondary).padding(.top, 6)
@@ -180,6 +196,7 @@ struct SleepPlanEditor: View {
   /// What happened the last time we tried to save, shown so a failure is never silent.
   @State private var status: String?
   @State private var failed = false
+  @State private var pendingTemplate: SleepPlan.Template?
 
   var body: some View {
     Form {
@@ -190,6 +207,21 @@ struct SleepPlanEditor: View {
           Text(status).foregroundStyle(failed ? Color.red : Color.secondary)
         }
         Text("Add the schedule you're following from a sleep book or your pediatrician for each stage of her age. Nested then shows what's next on the day, when to wake her from a nap, and how the week lined up. The stages below are only a generic starting point, so change them to match your plan.")
+      }
+      Section {
+        ForEach(SleepPlan.Template.allCases) { template in
+          Button {
+            pendingTemplate = template
+          } label: {
+            VStack(alignment: .leading, spacing: 3) {
+              Text(template.title).font(.body.weight(.semibold))
+              Text(template.summary).font(.footnote).foregroundStyle(.secondary)
+            }
+          }
+          .foregroundStyle(.primary)
+        }
+      } header: {
+        Text("Start from a template")
       }
       Section("Stages") {
         ForEach($plan.stages) { $stage in
@@ -218,6 +250,18 @@ struct SleepPlanEditor: View {
     }
     .navigationTitle("Sleep plan")
     .navigationBarTitleDisplayMode(.inline)
+    .confirmationDialog(
+      "Replace your stages?", isPresented: Binding(get: { pendingTemplate != nil }, set: { if !$0 { pendingTemplate = nil } }),
+      titleVisibility: .visible, presenting: pendingTemplate
+    ) { template in
+      Button("Replace with \(template.title)", role: .destructive) {
+        var fresh = SleepPlan.make(template)
+        fresh.enabled = plan.enabled
+        plan = fresh
+      }
+    } message: { _ in
+      Text("This swaps every stage for the template's. You can edit them afterwards.")
+    }
     .task {
       guard !loaded else { return }
       do {
@@ -274,14 +318,34 @@ private struct StageEditor: View {
     Binding(get: { date(minutes: binding.wrappedValue) }, set: { binding.wrappedValue = minutes($0) })
   }
 
+  private var napsEndByBinding: Binding<Int> {
+    Binding(get: { stage.napsEndBy ?? 16 * 60 }, set: { stage.napsEndBy = $0 })
+  }
+
+  private var dreamBinding: Binding<Int> {
+    Binding(get: { stage.dreamFeedMinute ?? 22 * 60 }, set: { stage.dreamFeedMinute = $0 })
+  }
+
+  private func napLength(_ index: Int) -> Binding<Int> {
+    Binding(
+      get: { stage.napLengths.indices.contains(index) ? stage.napLengths[index] : 0 },
+      set: { value in
+        while stage.napLengths.count <= index { stage.napLengths.append(0) }
+        stage.napLengths[index] = value
+      })
+  }
+
   private var bedBinding: Binding<Int> {
     Binding(get: { stage.bedMinute ?? 19 * 60 }, set: { stage.bedMinute = $0 })
   }
 
   var body: some View {
     Form {
-      Section("Starts") {
-        Stepper("From week \(stage.fromWeek)", value: $stage.fromWeek, in: 0...52)
+      Section("Stage") {
+        TextField("Name", text: $stage.name)
+        Stepper("From week \(stage.fromWeek)", value: $stage.fromWeek, in: 0...80)
+        TextField("Notes: when to move here, rules to remember", text: $stage.note, axis: .vertical)
+          .lineLimit(2...8)
       }
       Section("Day") {
         DatePicker("Wake up", selection: clock($stage.wakeMinute), displayedComponents: .hourAndMinute)
@@ -292,15 +356,36 @@ private struct StageEditor: View {
       }
       Section("Naps") {
         ForEach(stage.napMinutes.indices, id: \.self) { index in
-          DatePicker("Nap \(index + 1)", selection: clock($stage.napMinutes[index]), displayedComponents: .hourAndMinute)
+          VStack(alignment: .leading, spacing: 6) {
+            DatePicker("Nap \(index + 1)", selection: clock($stage.napMinutes[index]), displayedComponents: .hourAndMinute)
+            Picker("Length", selection: napLength(index)) {
+              Text("Default (\(stage.napLength) min)").tag(0)
+              ForEach([30, 45, 60, 75, 90, 105, 120, 150], id: \.self) { Text("\($0) min").tag($0) }
+            }
+            .font(.subheadline)
+          }
         }
-        .onDelete { stage.napMinutes.remove(atOffsets: $0) }
+        .onDelete {
+          stage.napMinutes.remove(atOffsets: $0)
+          stage.napLengths = Array(stage.napLengths.prefix(stage.napMinutes.count))
+        }
         Button("Add a nap") {
           let next = (stage.napMinutes.last ?? stage.wakeMinute) + max(90, stage.wakeWindow + 60)
           stage.napMinutes.append(min(next, 23 * 60))
+          while stage.napLengths.count < stage.napMinutes.count { stage.napLengths.append(0) }
         }
-        DurationEditor(title: "Nap length", minutes: Binding(get: { Double(stage.napLength) }, set: { stage.napLength = Int($0) }),
+        Toggle("Naps end by", isOn: Binding(get: { stage.napsEndBy != nil }, set: { stage.napsEndBy = $0 ? 16 * 60 : nil }))
+        if stage.napsEndBy != nil {
+          DatePicker("Latest end", selection: clock(napsEndByBinding), displayedComponents: .hourAndMinute)
+        }
+        DurationEditor(title: "Default nap length", minutes: Binding(get: { Double(stage.napLength) }, set: { stage.napLength = Int($0) }),
           maxMinutes: 240, presets: [45, 60, 90, 120], tint: planTint)
+      }
+      Section("Late feed") {
+        Toggle("Feed after bedtime", isOn: Binding(get: { stage.dreamFeedMinute != nil }, set: { stage.dreamFeedMinute = $0 ? 22 * 60 : nil }))
+        if stage.dreamFeedMinute != nil {
+          DatePicker("Late feed", selection: clock(dreamBinding), displayedComponents: .hourAndMinute)
+        }
       }
       Section {
         DurationEditor(title: "Longest awake", minutes: Binding(get: { Double(stage.wakeWindow) }, set: { stage.wakeWindow = Int($0) }),

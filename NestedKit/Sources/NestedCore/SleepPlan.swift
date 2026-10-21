@@ -20,22 +20,63 @@ public struct SleepPlan: Codable, Hashable, Sendable {
     public var wakeWindow: Int
     /// Feed interval in minutes through the day; 0 for none set.
     public var feedEvery: Int
+    /// Name of the stage ("Weeks 8–16"); empty falls back to the starting week.
+    public var name: String
+    /// What to look for before moving here, and anything to remember at this stage.
+    public var note: String
+    /// Length for each nap by position; 0 (or missing) uses `napLength`.
+    public var napLengths: [Int]
+    /// Daytime naps should be over by this time, in minutes after midnight.
+    public var napsEndBy: Int?
+    /// A late feed after bedtime ("dream feed"), in minutes after midnight.
+    public var dreamFeedMinute: Int?
 
     public init(
       id: UUID = UUID(), fromWeek: Int, wakeMinute: Int = 7 * 60, bedMinute: Int? = nil,
-      napMinutes: [Int] = [], napLength: Int = 0, wakeWindow: Int = 0, feedEvery: Int = 0
+      napMinutes: [Int] = [], napLength: Int = 0, wakeWindow: Int = 0, feedEvery: Int = 0,
+      name: String = "", note: String = "", napLengths: [Int] = [], napsEndBy: Int? = nil,
+      dreamFeedMinute: Int? = nil
     ) {
       self.id = id
       self.fromWeek = fromWeek
       self.wakeMinute = wakeMinute
       self.bedMinute = bedMinute
-      self.napMinutes = napMinutes.sorted()
+      self.napMinutes = napMinutes
       self.napLength = napLength
       self.wakeWindow = wakeWindow
       self.feedEvery = feedEvery
+      self.name = name
+      self.note = note
+      self.napLengths = napLengths
+      self.napsEndBy = napsEndBy
+      self.dreamFeedMinute = dreamFeedMinute
     }
 
-    public var title: String { "From week \(fromWeek)" }
+    // Plans saved before these fields existed still decode.
+    public init(from decoder: Decoder) throws {
+      let c = try decoder.container(keyedBy: CodingKeys.self)
+      id = try c.decode(UUID.self, forKey: .id)
+      fromWeek = try c.decode(Int.self, forKey: .fromWeek)
+      wakeMinute = try c.decode(Int.self, forKey: .wakeMinute)
+      bedMinute = try c.decodeIfPresent(Int.self, forKey: .bedMinute)
+      napMinutes = try c.decode([Int].self, forKey: .napMinutes)
+      napLength = try c.decode(Int.self, forKey: .napLength)
+      wakeWindow = try c.decode(Int.self, forKey: .wakeWindow)
+      feedEvery = try c.decode(Int.self, forKey: .feedEvery)
+      name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
+      note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+      napLengths = try c.decodeIfPresent([Int].self, forKey: .napLengths) ?? []
+      napsEndBy = try c.decodeIfPresent(Int.self, forKey: .napsEndBy)
+      dreamFeedMinute = try c.decodeIfPresent(Int.self, forKey: .dreamFeedMinute)
+    }
+
+    /// Target length of the nap at this position.
+    public func napTarget(at index: Int) -> Int {
+      if napLengths.indices.contains(index), napLengths[index] > 0 { return napLengths[index] }
+      return napLength
+    }
+
+    public var title: String { name.isEmpty ? "From week \(fromWeek)" : name }
   }
 
   public var enabled: Bool
@@ -48,22 +89,6 @@ public struct SleepPlan: Codable, Hashable, Sendable {
 
   public func stage(ageWeeks: Int) -> Stage? {
     stages.last { $0.fromWeek <= ageWeeks } ?? stages.first
-  }
-
-  /// Generic age-based guidance to edit from. Not any particular book's schedule.
-  public static var starter: SleepPlan {
-    func h(_ hour: Int, _ minute: Int = 0) -> Int { hour * 60 + minute }
-    return SleepPlan(
-      enabled: false,
-      stages: [
-        Stage(fromWeek: 0, wakeMinute: h(7), napMinutes: [], napLength: 0, wakeWindow: 60, feedEvery: 180),
-        Stage(fromWeek: 6, wakeMinute: h(7), bedMinute: h(20), napMinutes: [h(9), h(11, 30), h(14), h(16, 30)],
-          napLength: 90, wakeWindow: 90, feedEvery: 180),
-        Stage(fromWeek: 13, wakeMinute: h(7), bedMinute: h(19, 30), napMinutes: [h(9, 15), h(12), h(15, 15)],
-          napLength: 90, wakeWindow: 120, feedEvery: 210),
-        Stage(fromWeek: 26, wakeMinute: h(7), bedMinute: h(19), napMinutes: [h(9, 30), h(13, 30)],
-          napLength: 90, wakeWindow: 150, feedEvery: 240),
-      ])
   }
 }
 
@@ -127,14 +152,21 @@ public enum SleepPlanner {
       }
     }
 
+    // A late feed after bedtime.
+    if let dream = stage.dreamFeedMinute {
+      let planned = time(dream)
+      let actual = history.feeds.map(\.startedAt).first { abs($0.timeIntervalSince(planned)) <= 60 * 60 }
+      slots.append(PlanSlot(kind: .feed, at: planned, status: status(planned: planned, actual: actual, tolerance: 60 * 60), actual: actual))
+    }
+
     // Naps.
-    for minute in stage.napMinutes {
+    for (index, minute) in stage.napMinutes.enumerated() {
       let planned = time(minute)
       let actual = history.sleeps.map(\.startedAt).first { abs($0.timeIntervalSince(planned)) <= tolerance }
       slots.append(
         PlanSlot(
           kind: .nap, at: planned, status: status(planned: planned, actual: actual, tolerance: tolerance), actual: actual,
-          targetMinutes: stage.napLength > 0 ? stage.napLength : nil))
+          targetMinutes: stage.napTarget(at: index) > 0 ? stage.napTarget(at: index) : nil))
     }
 
     // Bedtime.
@@ -151,17 +183,30 @@ public enum SleepPlanner {
     slots.first { $0.status == .due || $0.status == .upcoming }
   }
 
-  /// When the running nap should end to stay on plan: its planned length from when it started.
+  /// When the running nap should end to stay on plan: its planned length from when it started,
+  /// but never past the time naps should be over by.
   public static func napEnd(
     plan: SleepPlan, ageDays: Int, sleepStarted: Date, calendar: Calendar = .current
   ) -> Date? {
-    guard plan.enabled, let stage = plan.stage(ageWeeks: max(0, ageDays) / 7), stage.napLength > 0
-    else { return nil }
+    guard plan.enabled, let stage = plan.stage(ageWeeks: max(0, ageDays) / 7) else { return nil }
     let minute = calendar.component(.hour, from: sleepStarted) * 60 + calendar.component(.minute, from: sleepStarted)
     // Only a daytime nap: between the morning wake and a bit before bedtime.
     let bed = stage.bedMinute ?? 20 * 60
     guard minute >= stage.wakeMinute - 30, minute < bed - 30 else { return nil }
-    return sleepStarted.addingTimeInterval(Double(stage.napLength) * 60)
+    // The planned nap this one is closest to, within an hour and a half.
+    var length = stage.napLength
+    if let nearest = stage.napMinutes.enumerated().min(by: { abs($0.element - minute) < abs($1.element - minute) }),
+      abs(nearest.element - minute) <= 90
+    {
+      length = stage.napTarget(at: nearest.offset)
+    }
+    guard length > 0 else { return nil }
+    var end = sleepStarted.addingTimeInterval(Double(length) * 60)
+    if let cutoff = stage.napsEndBy {
+      let limit = calendar.startOfDay(for: sleepStarted).addingTimeInterval(Double(cutoff) * 60)
+      if limit > sleepStarted { end = min(end, limit) }
+    }
+    return end
   }
 
   // MARK: Adherence
@@ -182,13 +227,13 @@ public enum SleepPlanner {
       guard ageDays >= 0, let stage = plan.stage(ageWeeks: ageDays / 7) else { continue }
       let sleeps = history.sleeps.filter { $0.startedAt >= day && $0.startedAt < day.addingTimeInterval(86_400) }
       guard !sleeps.isEmpty else { continue }  // an unlogged day says nothing
-      for minute in stage.napMinutes {
+      for (index, minute) in stage.napMinutes.enumerated() {
         let target = day.addingTimeInterval(Double(minute) * 60)
         planned += 1
         if let match = sleeps.first(where: { abs($0.startedAt.timeIntervalSince(target)) <= tolerance }) {
           onTime += 1
-          if stage.napLength > 0, let end = match.endedAt {
-            overruns.append(end.timeIntervalSince(match.startedAt) / 60 - Double(stage.napLength))
+          if stage.napTarget(at: index) > 0, let end = match.endedAt {
+            overruns.append(end.timeIntervalSince(match.startedAt) / 60 - Double(stage.napTarget(at: index)))
           }
         }
       }
