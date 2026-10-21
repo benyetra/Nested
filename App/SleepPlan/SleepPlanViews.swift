@@ -177,12 +177,18 @@ struct SleepPlanEditor: View {
   @Environment(AppModel.self) private var model
   @State private var plan: SleepPlan = .starter
   @State private var loaded = false
+  /// What happened the last time we tried to save, shown so a failure is never silent.
+  @State private var status: String?
+  @State private var failed = false
 
   var body: some View {
     Form {
       Section {
         Toggle("Use a sleep plan", isOn: $plan.enabled)
       } footer: {
+        if let status {
+          Text(status).foregroundStyle(failed ? Color.red : Color.secondary)
+        }
         Text("Add the schedule you're following from a sleep book or your pediatrician for each stage of her age. Nested then shows what's next on the day, when to wake her from a nap, and how the week lined up. The stages below are only a generic starting point, so change them to match your plan.")
       }
       Section("Stages") {
@@ -214,14 +220,41 @@ struct SleepPlanEditor: View {
     .navigationBarTitleDisplayMode(.inline)
     .task {
       guard !loaded else { return }
+      do {
+        if let saved = try model.store.sleepPlan() { plan = saved }
+      } catch {
+        failed = true
+        status = "Couldn't read the saved plan: \(error.localizedDescription)"
+      }
+      // Only start saving once the saved plan is in place, so loading is never mistaken for an edit.
+      try? await Task.sleep(for: .milliseconds(100))
       loaded = true
-      if let saved = try? model.store.sleepPlan() { plan = saved }
     }
     .onChange(of: plan) { _, new in
       guard loaded else { return }
-      var sorted = new
-      sorted.stages.sort { $0.fromWeek < $1.fromWeek }
-      try? model.store.saveSleepPlan(sorted)
+      persist(new)
+    }
+  }
+
+  private func persist(_ new: SleepPlan) {
+    var sorted = new
+    sorted.stages.sort { $0.fromWeek < $1.fromWeek }
+    do {
+      try model.store.saveSleepPlan(sorted)
+      // Read it back: "saved" only means something if it's really in the database.
+      let stored = try model.store.sleepPlan()
+      if stored == sorted {
+        failed = false
+        status = "Saved on this phone \(Date().formatted(date: .omitted, time: .shortened))."
+      } else {
+        failed = true
+        status = "The plan didn't stick: it saved but read back different."
+        model.errorMessage = "The sleep plan didn't save. Please tell Claude: read-back mismatch."
+      }
+    } catch {
+      failed = true
+      status = "Couldn't save: \(error.localizedDescription)"
+      model.errorMessage = "Couldn't save the sleep plan: \(String(describing: error))"
     }
   }
 
