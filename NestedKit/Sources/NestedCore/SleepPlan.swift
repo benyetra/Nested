@@ -141,22 +141,41 @@ public enum SleepPlanner {
     slots.append(
       PlanSlot(kind: .wake, at: wakeAt, status: status(planned: wakeAt, actual: actualWake, tolerance: 90 * 60), actual: actualWake))
 
-    // Feeds from wake to bedtime (or 10 pm).
+    // Feeds from wake to bedtime (or 10 pm), plus a late feed after bedtime. Every kind of feed
+    // counts: nursing and bottles of breast milk or formula alike.
+    var feedTargets: [(at: Date, half: TimeInterval)] = []
     if stage.feedEvery > 0 {
       let end = time(stage.bedMinute ?? 22 * 60)
+      // A feed up to half an interval either side belongs to the slot, so a bottle an hour late
+      // still counts as that feed instead of leaving a "gap".
+      let half = min(120 * 60, max(40 * 60, Double(stage.feedEvery) * 60 / 2))
       var cursor = wakeAt.addingTimeInterval(Double(stage.feedEvery) * 60)
       while cursor <= end {
-        let actual = history.feeds.map(\.startedAt).first { abs($0.timeIntervalSince(cursor)) <= 40 * 60 }
-        slots.append(PlanSlot(kind: .feed, at: cursor, status: status(planned: cursor, actual: actual, tolerance: 40 * 60), actual: actual))
+        feedTargets.append((cursor, half))
         cursor = cursor.addingTimeInterval(Double(stage.feedEvery) * 60)
       }
     }
+    if let dream = stage.dreamFeedMinute { feedTargets.append((time(dream), 60 * 60)) }
 
-    // A late feed after bedtime.
-    if let dream = stage.dreamFeedMinute {
-      let planned = time(dream)
-      let actual = history.feeds.map(\.startedAt).first { abs($0.timeIntervalSince(planned)) <= 60 * 60 }
-      slots.append(PlanSlot(kind: .feed, at: planned, status: status(planned: planned, actual: actual, tolerance: 60 * 60), actual: actual))
+    // Pair each feed with the nearest slot, closest pairs first, one feed per slot.
+    let feedStarts = history.feeds.map(\.startedAt).filter { $0 >= start.addingTimeInterval(-3600) && $0 < start.addingTimeInterval(90_000) }
+    var pairs: [(slot: Int, feed: Int, distance: TimeInterval)] = []
+    for (slotIndex, target) in feedTargets.enumerated() {
+      for (feedIndex, feedStart) in feedStarts.enumerated() {
+        let distance = abs(feedStart.timeIntervalSince(target.at))
+        if distance <= target.half { pairs.append((slotIndex, feedIndex, distance)) }
+      }
+    }
+    var slotMatch: [Int: Date] = [:]
+    var usedFeeds = Set<Int>()
+    for pair in pairs.sorted(by: { $0.distance < $1.distance }) where slotMatch[pair.slot] == nil && !usedFeeds.contains(pair.feed) {
+      slotMatch[pair.slot] = feedStarts[pair.feed]
+      usedFeeds.insert(pair.feed)
+    }
+    for (slotIndex, target) in feedTargets.enumerated() {
+      let actual = slotMatch[slotIndex]
+      slots.append(
+        PlanSlot(kind: .feed, at: target.at, status: status(planned: target.at, actual: actual, tolerance: 40 * 60), actual: actual))
     }
 
     // Naps.

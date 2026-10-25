@@ -147,4 +147,29 @@ struct SleepPlanTests {
     #expect(plan.stages.first?.dreamFeedMinute == nil)
     #expect(plan.stages.first?.napTarget(at: 0) == 90)
   }
+
+  @Test("A bottle counts as a feed, even an hour off the planned time")
+  func bottlesCount() {
+    // Planned feeds every 3 hours from 7:00: 10:00, 13:00, 16:00, 19:00.
+    let history = History(
+      feeds: [
+        FeedRecord(startedAt: at(10, 55), kind: .bottle(amountMl: 120, contents: .formula)),
+        FeedRecord(startedAt: at(13, 10), kind: .bottle(amountMl: 90, contents: .breastMilk)),
+      ])
+    let slots = SleepPlanner.today(plan: plan, ageDays: 40, now: at(14), history: history, calendar: cal)
+    func feed(_ hour: Int) -> PlanSlot? { slots.first { $0.kind == .feed && cal.component(.hour, from: $0.at) == hour } }
+    #expect(feed(10)?.status == .done)
+    #expect(feed(10)?.actual == at(10, 55))
+    #expect(feed(13)?.status == .done)
+  }
+
+  @Test("One feed satisfies one slot, so a real gap still shows")
+  func oneFeedOneSlot() {
+    // A single feed at 11:30 sits between the 10:00 and 13:00 slots; it fills only the nearer one.
+    let history = History(feeds: [FeedRecord(startedAt: at(11, 20), kind: .bottle(amountMl: 100, contents: .formula))])
+    let slots = SleepPlanner.today(plan: plan, ageDays: 40, now: at(15), history: history, calendar: cal)
+    let done = slots.filter { $0.kind == .feed && $0.status == .done }
+    #expect(done.count == 1)
+    #expect(slots.first { $0.kind == .feed && cal.component(.hour, from: $0.at) == 13 }?.status == .missed)
+  }
 }
