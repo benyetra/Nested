@@ -30,12 +30,18 @@ public struct SleepPlan: Codable, Hashable, Sendable {
     public var napsEndBy: Int?
     /// A late feed after bedtime ("dream feed"), in minutes after midnight.
     public var dreamFeedMinute: Int?
+    /// Exact feed times through the day, after the wake-up feed. When set, these replace `feedEvery`.
+    public var feedMinutes: [Int]
+    /// Baby-food meals (shown for reference; solids aren't logged).
+    public var mealMinutes: [Int]
+    /// What to hold onto on a day that goes sideways.
+    public var crazyDay: String
 
     public init(
       id: UUID = UUID(), fromWeek: Int, wakeMinute: Int = 7 * 60, bedMinute: Int? = nil,
       napMinutes: [Int] = [], napLength: Int = 0, wakeWindow: Int = 0, feedEvery: Int = 0,
       name: String = "", note: String = "", napLengths: [Int] = [], napsEndBy: Int? = nil,
-      dreamFeedMinute: Int? = nil
+      dreamFeedMinute: Int? = nil, feedMinutes: [Int] = [], mealMinutes: [Int] = [], crazyDay: String = ""
     ) {
       self.id = id
       self.fromWeek = fromWeek
@@ -50,6 +56,9 @@ public struct SleepPlan: Codable, Hashable, Sendable {
       self.napLengths = napLengths
       self.napsEndBy = napsEndBy
       self.dreamFeedMinute = dreamFeedMinute
+      self.feedMinutes = feedMinutes
+      self.mealMinutes = mealMinutes
+      self.crazyDay = crazyDay
     }
 
     // Plans saved before these fields existed still decode.
@@ -68,6 +77,9 @@ public struct SleepPlan: Codable, Hashable, Sendable {
       napLengths = try c.decodeIfPresent([Int].self, forKey: .napLengths) ?? []
       napsEndBy = try c.decodeIfPresent(Int.self, forKey: .napsEndBy)
       dreamFeedMinute = try c.decodeIfPresent(Int.self, forKey: .dreamFeedMinute)
+      feedMinutes = try c.decodeIfPresent([Int].self, forKey: .feedMinutes) ?? []
+      mealMinutes = try c.decodeIfPresent([Int].self, forKey: .mealMinutes) ?? []
+      crazyDay = try c.decodeIfPresent(String.self, forKey: .crazyDay) ?? ""
     }
 
     /// Target length of the nap at this position.
@@ -94,7 +106,7 @@ public struct SleepPlan: Codable, Hashable, Sendable {
 
 /// One point on today's plan.
 public struct PlanSlot: Hashable, Sendable, Identifiable {
-  public enum Kind: String, Hashable, Sendable { case wake, feed, nap, bed }
+  public enum Kind: String, Hashable, Sendable { case wake, feed, meal, nap, bed }
   public enum Status: Hashable, Sendable {
     /// Happened, near the planned time.
     case done
@@ -144,7 +156,17 @@ public enum SleepPlanner {
     // Feeds from wake to bedtime (or 10 pm), plus a late feed after bedtime. Every kind of feed
     // counts: nursing and bottles of breast milk or formula alike.
     var feedTargets: [(at: Date, half: TimeInterval)] = []
-    if stage.feedEvery > 0 {
+    if !stage.feedMinutes.isEmpty {
+      // Exact times from the plan. A feed belongs to the nearest one within half the gap to its
+      // neighbours, so a late bottle still counts as that feed.
+      let sorted = stage.feedMinutes.sorted()
+      for (index, minute) in sorted.enumerated() {
+        var gap = 180.0
+        if index > 0 { gap = min(gap, Double(minute - sorted[index - 1])) }
+        if index + 1 < sorted.count { gap = min(gap, Double(sorted[index + 1] - minute)) }
+        feedTargets.append((time(minute), min(120 * 60, max(40 * 60, gap * 60 / 2))))
+      }
+    } else if stage.feedEvery > 0 {
       let end = time(stage.bedMinute ?? 22 * 60)
       // A feed up to half an interval either side belongs to the slot, so a bottle an hour late
       // still counts as that feed instead of leaving a "gap".
@@ -176,6 +198,14 @@ public enum SleepPlanner {
       let actual = slotMatch[slotIndex]
       slots.append(
         PlanSlot(kind: .feed, at: target.at, status: status(planned: target.at, actual: actual, tolerance: 40 * 60), actual: actual))
+    }
+
+    // Baby food, for reference: shown until an hour past its time, never marked missed.
+    for minute in stage.mealMinutes {
+      let planned = time(minute)
+      guard now <= planned.addingTimeInterval(60 * 60) else { continue }
+      slots.append(
+        PlanSlot(kind: .meal, at: planned, status: now >= planned.addingTimeInterval(-15 * 60) ? .due : .upcoming, actual: nil))
     }
 
     // Naps.

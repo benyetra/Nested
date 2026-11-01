@@ -9,6 +9,7 @@ private extension PlanSlot.Kind {
     switch self {
     case .wake: "Wake up"
     case .feed: "Feed"
+    case .meal: "Baby food"
     case .nap: "Nap"
     case .bed: "Bedtime"
     }
@@ -18,6 +19,7 @@ private extension PlanSlot.Kind {
     switch self {
     case .wake: "sun.max.fill"
     case .feed: "drop.fill"
+    case .meal: "fork.knife"
     case .nap: "moon.zzz.fill"
     case .bed: "bed.double.fill"
     }
@@ -27,6 +29,7 @@ private extension PlanSlot.Kind {
     switch self {
     case .wake: .orange
     case .feed: EventKind.nursing.color
+    case .meal: .green
     case .nap, .bed: EventKind.sleep.color
     }
   }
@@ -149,6 +152,15 @@ struct PlanDaySheet: View {
                 }
               }
               .padding(.bottom, 4)
+              if !stage.crazyDay.isEmpty {
+                Card(tint: .orange) {
+                  VStack(alignment: .leading, spacing: 4) {
+                    Label("If the day goes sideways", systemImage: "tornado")
+                      .font(.subheadline.weight(.semibold)).foregroundStyle(.orange)
+                    Text(stage.crazyDay).font(.footnote)
+                  }
+                }
+              }
             }
             ForEach(slots) { slot in
               SlotRow(slot: slot)
@@ -346,6 +358,8 @@ private struct StageEditor: View {
         Stepper("From week \(stage.fromWeek)", value: $stage.fromWeek, in: 0...80)
         TextField("Notes: when to move here, rules to remember", text: $stage.note, axis: .vertical)
           .lineLimit(2...8)
+        TextField("If the day goes sideways: the two things to keep", text: $stage.crazyDay, axis: .vertical)
+          .lineLimit(2...6)
       }
       Section("Day") {
         DatePicker("Wake up", selection: clock($stage.wakeMinute), displayedComponents: .hourAndMinute)
@@ -380,6 +394,26 @@ private struct StageEditor: View {
         }
         DurationEditor(title: "Default nap length", minutes: Binding(get: { Double(stage.napLength) }, set: { stage.napLength = Int($0) }),
           maxMinutes: 240, presets: [45, 60, 90, 120], tint: planTint)
+      }
+      Section {
+        ForEach(stage.feedMinutes.indices, id: \.self) { index in
+          DatePicker("Feed \(index + 1)", selection: clock($stage.feedMinutes[index]), displayedComponents: .hourAndMinute)
+        }
+        .onDelete { stage.feedMinutes.remove(atOffsets: $0) }
+        Button("Add a feed time") {
+          stage.feedMinutes.append(min((stage.feedMinutes.last ?? stage.wakeMinute) + 180, 23 * 60))
+        }
+        ForEach(stage.mealMinutes.indices, id: \.self) { index in
+          DatePicker("Baby food \(index + 1)", selection: clock($stage.mealMinutes[index]), displayedComponents: .hourAndMinute)
+        }
+        .onDelete { stage.mealMinutes.remove(atOffsets: $0) }
+        Button("Add a baby-food meal") {
+          stage.mealMinutes.append(min((stage.mealMinutes.last ?? stage.wakeMinute + 60) + 240, 23 * 60))
+        }
+      } header: {
+        Text("Feed times")
+      } footer: {
+        Text("Exact feed times for the day after the wake-up feed. Leave empty to use \"Feed every\" below.")
       }
       Section("Late feed") {
         Toggle("Feed after bedtime", isOn: Binding(get: { stage.dreamFeedMinute != nil }, set: { stage.dreamFeedMinute = $0 ? 22 * 60 : nil }))

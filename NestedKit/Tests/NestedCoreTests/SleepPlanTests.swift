@@ -88,28 +88,66 @@ struct SleepPlanTests {
     #expect(try JSONDecoder().decode(SleepPlan.self, from: data) == original)
   }
 
-  @Test("The Moms on Call style template follows the published stage ages and rules")
+  @Test("The Moms on Call template matches the book's typical-day tables")
   func momsOnCallTemplate() throws {
     let p = SleepPlan.make(.momsOnCall)
-    #expect(p.stages.map(\.fromWeek) == [0, 2, 4, 7, 17, 26, 35, 47, 52])
-    // Newborn: no set naps; routine from about 2 weeks; two naps from 4 months; one nap by 12 months.
-    #expect(p.stage(ageWeeks: 1)?.napMinutes.isEmpty == true)
-    #expect(p.stage(ageWeeks: 3)?.feedEvery == 180)
-    #expect(p.stage(ageWeeks: 10)?.napMinutes.count == 3)
-    #expect(p.stage(ageWeeks: 20)?.napMinutes.count == 2)
-    #expect(p.stage(ageWeeks: 60)?.napMinutes.count == 1)
-    // Naps are over by 4 pm until the last stages, and the late feed fades after the 8–16 week stage.
-    #expect(p.stage(ageWeeks: 10)?.napsEndBy == 16 * 60)
-    #expect(p.stage(ageWeeks: 20)?.dreamFeedMinute == nil)
-    // Every stage lays out a full day with no nap past the cutoff or after bedtime.
+    func h(_ hour: Int, _ minute: Int = 0) -> Int { hour * 60 + minute }
+    #expect(p.stages.map(\.fromWeek) == [0, 2, 4, 8, 17, 26, 35, 47, 52])
+
+    // 2–4 weeks: feeds 9, 12, 3, supper 6, bedtime 9; naps 9:45, 12:45, 3:45 and a 6:45 sleep; crib 9:30.
+    let two = try #require(p.stage(ageWeeks: 3))
+    #expect(two.feedMinutes == [h(9), h(12), h(15), h(18), h(21)])
+    #expect(two.napMinutes == [h(9, 45), h(12, 45), h(15, 45), h(18, 45)])
+    #expect(two.bedMinute == h(21, 30))
+    #expect(two.napTarget(at: 0) == 120)
+
+    // 4–8 weeks: supper and bedtime feeding half an hour earlier.
+    let four = try #require(p.stage(ageWeeks: 5))
+    #expect(four.feedMinutes == [h(9), h(12), h(15), h(17, 30), h(20, 30)])
+    #expect(four.napMinutes == [h(10), h(13), h(16), h(18, 30)])
+    #expect(four.bedMinute == h(21))
+    #expect(four.napTarget(at: 2) == 90)
+
+    // 8–16 weeks: 7 am wake feed; naps 8:30, 11:30, 2:30 and a 5:30 catnap; supper 4, bedtime feeding 7, crib 7:30.
+    let eight = try #require(p.stage(ageWeeks: 10))
+    #expect(eight.wakeMinute == h(7))
+    #expect(eight.feedMinutes == [h(10), h(13), h(16), h(19)])
+    #expect(eight.napMinutes == [h(8, 30), h(11, 30), h(14, 30), h(17, 30)])
+    #expect(eight.napTarget(at: 3) == 60)
+    #expect(eight.bedMinute == h(19, 30))
+
+    // 4–6 months: two naps, three baby-food meals, milk at 11, 3 and 7.
+    let solids = try #require(p.stage(ageWeeks: 20))
+    #expect(solids.napMinutes == [h(9), h(13)])
+    #expect(solids.mealMinutes == [h(8), h(12), h(16)])
+    #expect(solids.feedMinutes == [h(11), h(15), h(19)])
+    #expect(solids.napTarget(at: 1) == 120)
+
+    // Every stage has its notes, naps sit in order before bedtime, and the tips are on the book's stages.
     for stage in p.stages {
-      for minute in stage.napMinutes {
-        #expect(minute < (stage.bedMinute ?? 24 * 60))
-        if let cutoff = stage.napsEndBy { #expect(minute < cutoff) }
-      }
+      for minute in stage.napMinutes { #expect(minute < (stage.bedMinute ?? 24 * 60)) }
       #expect(stage.napMinutes == stage.napMinutes.sorted())
       #expect(!stage.note.isEmpty)
     }
+    for week in [3, 5, 10, 20] { #expect(p.stage(ageWeeks: week)?.crazyDay.isEmpty == false) }
+  }
+
+  @Test("Exact feed times: a late bottle still counts, and baby food is shown without being tracked")
+  func exactFeedsAndMeals() throws {
+    let p = SleepPlan.make(.momsOnCall)
+    var enabled = p
+    enabled.enabled = true
+    // 5 months old: milk at 11, 3 and 7 pm; baby food at 8, 12 and 4.
+    let history = History(
+      feeds: [FeedRecord(startedAt: at(11, 50), kind: .bottle(amountMl: 200, contents: .formula))])
+    let slots = SleepPlanner.today(plan: enabled, ageDays: 150, now: at(12, 10), history: history, calendar: cal)
+    func slot(_ kind: PlanSlot.Kind, _ hour: Int) -> PlanSlot? { slots.first { $0.kind == kind && cal.component(.hour, from: $0.at) == hour } }
+    #expect(slot(.feed, 11)?.status == .done)
+    #expect(slot(.feed, 15)?.status == .upcoming)
+    // Meals: the 8 am one is over, the noon one is current, the 4 pm one is ahead.
+    #expect(slot(.meal, 8) == nil)
+    #expect(slot(.meal, 12)?.status == .due)
+    #expect(slot(.meal, 16)?.status == .upcoming)
   }
 
   @Test("Per-nap lengths and the 4 pm cutoff shape when to wake her")
